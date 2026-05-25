@@ -1,63 +1,57 @@
-from rules import (
+import random
+
+from rules import build_rules
+from equivalence import check_equivalence
+from utils import banner
+
+from examples.safe_refactoring import (
     original_specs,
-    safe_specs,
-    unsafe_specs,
-    build_rules
+    safe_specs
 )
 
-from equivalence import check_equivalence
-
-import random
+from examples.unsafe_refactoring import (
+    unsafe_specs
+)
 
 
 if __name__ == "__main__":
 
     random.seed(42)
 
-    original_rules = build_rules(original_specs)
+    original_rules = build_rules(
+        original_specs
+    )
 
-    safe_rules = build_rules(safe_specs)
+    safe_rules = build_rules(
+        safe_specs
+    )
 
-    unsafe_rules = build_rules(unsafe_specs)
+    unsafe_rules = build_rules(
+        unsafe_specs
+    )
 
-    print("\n================================================")
-    print("RRAI REFACTORING TOOL")
-    print("================================================")
+    banner("RRAI REFACTORING TOOL")
 
-    print("\n1. Load original rules")
-    print("2. Load refactored rules")
-    print("3. Generate traces")
-    print("4. Check equivalence")
-    print("5. Produce counterexamples")
-
-    # --------------------------------------------------------
-    # SAFE
-    # --------------------------------------------------------
-
-    print("\n================================================")
-    print("SAFE REFACTORING")
-    print("================================================")
+    banner("SAFE REFACTORING")
 
     result_safe = check_equivalence(
         original_rules,
-        safe_rules,
-        iterations=10000
+        safe_rules
     )
 
-    print("\nObservable equivalence:", result_safe)
+    print(
+        "\nObservable equivalence:",
+        result_safe
+    )
 
-    # --------------------------------------------------------
-    # UNSAFE
-    # --------------------------------------------------------
-
-    print("\n================================================")
-    print("UNSAFE REFACTORING")
-    print("================================================")
+    banner("UNSAFE REFACTORING")
 
     result_unsafe = check_equivalence(
         original_rules,
-        unsafe_rules,
-        iterations=10000
+        unsafe_rules
     )
 
-    print("\nObservable equivalence:", result_unsafe)
+    print(
+        "\nObservable equivalence:",
+        result_unsafe
+    )
