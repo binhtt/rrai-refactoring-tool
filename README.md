@@ -195,9 +195,6 @@ pytest tests/
 
 ```bash
 python experiments/scalability.py
-```
-
----
 
 
 ---
