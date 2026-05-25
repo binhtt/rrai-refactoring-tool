@@ -20,6 +20,9 @@ def random_state():
         "chargingStationNear": random.choice([True, False]),
         "goalVisible": random.choice([True, False]),
         "idle": random.choice([True, False]),
+        "communicationLost": random.choice([True, False]),
+        "sensorFailure": random.choice([True, False]),
+        "localizationLost": random.choice([True, False]),
     }
 
 
