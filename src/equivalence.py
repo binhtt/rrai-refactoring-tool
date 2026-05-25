@@ -1,4 +1,5 @@
 from observable import execute_trace
+
 from simulator import (
     random_state,
     random_event_trace
