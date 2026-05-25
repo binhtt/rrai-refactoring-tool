@@ -1,9 +1,10 @@
-def describe_refactoring():
+"""
+Utilities for rule refactoring transformations.
+"""
 
-    return [
-        "Rule extraction",
-        "Rule merging",
-        "Dead rule elimination",
-        "Condition simplification",
-        "Priority restructuring"
-    ]
+
+def rename_rule(rule, new_name):
+
+    rule.name = new_name
+
+    return rule
