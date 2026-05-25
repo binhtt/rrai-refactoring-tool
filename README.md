@@ -1,12 +1,12 @@
 # RRAI Refactoring Tool
 
-Formal verification framework for correctness-preserving refactorings in Reactive Rule-Based AI (RRAI) systems.
+Prototype implementation for analysing correctness-preserving refactorings in Reactive Rule-Based AI (RRAI) systems.
 
 ---
 
 ## Overview
 
-This repository provides a prototype implementation for:
+This repository provides a research prototype for:
 
 - Reactive Rule-Based AI (RRAI) semantics
 - Observable trace generation
@@ -15,9 +15,7 @@ This repository provides a prototype implementation for:
 - Counterexample generation
 - Experimental scalability evaluation
 
-The implementation accompanies the paper:
-
-> *A Calculus of Correctness-Preserving Refactorings for Reactive Rule-Based AI Systems*
+The implementation follows the observable operational semantics defined in the accompanying research work on correctness-preserving refactorings for reactive rule-based AI systems.
 
 ---
 
@@ -26,11 +24,27 @@ The implementation accompanies the paper:
 - Labelled transition semantics
 - Observable trace semantics
 - Priority-based rule execution
-- Refactoring correctness checking
-- Safe vs unsafe transformation analysis
+- Safe vs unsafe refactoring analysis
+- Observable equivalence checking
 - Counterexample extraction
 - Randomized execution testing
 - Scalability benchmarking
+
+---
+
+# Semantic Model
+
+The current implementation follows an observable operational semantics for RRAI systems.
+
+In particular:
+
+- idle executions are represented using τ-actions,
+- observable traces are generated from labelled transitions,
+- rule identifiers are preserved only at semantic-transition level,
+- observable equivalence is evaluated over observable traces,
+- repeated τ-transitions are intentionally retained to preserve operational behaviour during execution analysis.
+
+The repository is intended as a research prototype for experimental evaluation and reproducibility.
 
 ---
 
@@ -68,18 +82,10 @@ rrai-refactoring-tool/
 │   ├── test_equivalence.py
 │   └── test_refactoring.py
 │
-├── docs/
-│   ├── semantics.md
-│   ├── observable_equivalence.md
-│   └── refactoring_rules.md
-│
-└── paper/
-    └── einformatica.pdf
-```
-
----
-
-
+└── docs/
+    ├── semantics.md
+    ├── observable_equivalence.md
+    └── refactoring_rules.md
 ```
 
 ---
@@ -102,6 +108,7 @@ z3-solver
 numpy
 networkx
 matplotlib
+pytest
 ```
 
 ---
@@ -138,6 +145,8 @@ Initial state:
 
 Events:
 ['sensor', 'timer', 'watchdog']
+
+Observable equivalence: False
 ```
 
 ---
@@ -158,10 +167,10 @@ Currently supported transformations:
 
 The repository includes:
 
-- scalability experiments
-- randomized rule generation
-- equivalence benchmarks
-- execution time analysis
+- scalability experiments,
+- randomized rule generation,
+- equivalence benchmarks,
+- execution time analysis.
 
 Run experiments:
 
@@ -170,7 +179,6 @@ python experiments/scalability.py
 ```
 
 ---
-
 
 # Example Workflow
 
@@ -200,25 +208,13 @@ python experiments/scalability.py
 formal-methods
 rule-based-systems
 reactive-systems
-event-b
 trace-equivalence
 software-refactoring
 runtime-verification
 model-checking
 ai-systems
-```
-
----
-
-# Citation
-
-```bibtex
-@article{trinh2026rrai,
-  title={A Calculus of Correctness-Preserving Refactorings for Reactive Rule-Based AI Systems},
-  author={Trinh, Thanh-Binh and others},
-  journal={e-Informatica Software Engineering Journal},
-  year={2026}
-}
+reactive-ai
+operational-semantics
 ```
 
 ---
@@ -232,7 +228,6 @@ MIT License
 # Authors
 
 - Thanh-Binh Trinh
-- Collaborators and contributors
+- Contributors and collaborators
 
 ---
-
