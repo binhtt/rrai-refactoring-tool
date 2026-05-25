@@ -93,7 +93,7 @@ rrai-refactoring-tool/
 # Installation
 
 ```bash
-git clone https://github.com/yourname/rrai-refactoring-tool.git
+git clone https://github.com/binhtt/rrai-refactoring-tool.git
 cd rrai-refactoring-tool
 pip install -r requirements.txt
 ```
