@@ -1,49 +1,24 @@
-# ============================================================
-# RRAI REFACTORING TOOL
-# ============================================================
-#
-# Main entry point for:
-#
-# 1. Loading original rules
-# 2. Loading refactored rules
-# 3. Generating execution traces
-# 4. Checking observable equivalence
-# 5. Producing counterexamples
-#
-# ============================================================
-
-import random
-
 from rules import (
     original_specs,
     safe_specs,
     unsafe_specs,
+    build_rules
 )
-
-from semantics import build_rules
 
 from equivalence import check_equivalence
 
+import random
 
-# ============================================================
-# MAIN PROGRAM
-# ============================================================
 
-def main():
+if __name__ == "__main__":
 
     random.seed(42)
 
-    original_rules = build_rules(
-        original_specs
-    )
+    original_rules = build_rules(original_specs)
 
-    safe_rules = build_rules(
-        safe_specs
-    )
+    safe_rules = build_rules(safe_specs)
 
-    unsafe_rules = build_rules(
-        unsafe_specs
-    )
+    unsafe_rules = build_rules(unsafe_specs)
 
     print("\n================================================")
     print("RRAI REFACTORING TOOL")
@@ -86,12 +61,3 @@ def main():
     )
 
     print("\nObservable equivalence:", result_unsafe)
-
-
-# ============================================================
-# ENTRY
-# ============================================================
-
-if __name__ == "__main__":
-
-    main()
