@@ -104,10 +104,7 @@ pip install -r requirements.txt
 
 ```text
 Python >= 3.10
-z3-solver
 numpy
-networkx
-matplotlib
 pytest
 ```
 
