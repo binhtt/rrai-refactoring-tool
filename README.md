@@ -79,32 +79,7 @@ rrai-refactoring-tool/
 
 ---
 
-# Formal Semantics
 
-An execution step is represented as:
-
-\[
-(s,e) \xrightarrow{r/a} s'
-\]
-
-where:
-
-- `s` is the current state
-- `e` is the triggering event
-- `r` is the selected rule
-- `a` is the executed action
-- `s'` is the resulting state
-
-Observable traces are defined over:
-
-```python
-(event, action, resulting_state)
-```
-
-The tool checks observable trace equivalence between:
-
-```python
-TraceObs(M,s,σ) == TraceObs(M',s,σ)
 ```
 
 ---
@@ -196,19 +171,6 @@ python experiments/scalability.py
 
 ---
 
-# Research Context
-
-This work combines concepts from:
-
-- Formal Methods
-- Reactive Systems
-- Runtime Verification
-- Rule-Based AI
-- Event-B
-- Trace Equivalence
-- Refactoring Verification
-
----
 
 # Example Workflow
 
@@ -274,35 +236,3 @@ MIT License
 
 ---
 
-# Acknowledgements
-
-This project was inspired by research in:
-
-- Event-B verification
-- Reactive AI systems
-- Runtime verification
-- Trace semantics
-- Refactoring correctness
-
----
-
-# Future Work
-
-Planned extensions include:
-
-- SMT-based equivalence checking
-- Symbolic execution
-- Temporal property verification
-- Probabilistic rule systems
-- Integration with Event-B toolchains
-- Automated refactoring recommendation
-
----
-
-# Contact
-
-For research collaboration or questions:
-
-- GitHub Issues
-- Academic correspondence
-- Research project discussions
