@@ -202,20 +202,6 @@ python experiments/scalability.py
 
 ---
 
-# Suggested GitHub Topics
-
-```text
-formal-methods
-rule-based-systems
-reactive-systems
-trace-equivalence
-software-refactoring
-runtime-verification
-model-checking
-ai-systems
-reactive-ai
-operational-semantics
-```
 
 ---
 
