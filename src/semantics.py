@@ -1,4 +1,5 @@
-from typing import Dict
+from typing import Dict, List
+from rules import Rule
 
 
 def delta(state: Dict, action: str) -> Dict:
@@ -49,3 +50,47 @@ def delta(state: Dict, action: str) -> Dict:
         new_state["hazard"] = True
 
     return new_state
+
+
+def enabled_rules(
+    rules: List[Rule],
+    state: Dict,
+    event: str
+):
+
+    return [
+
+        r for r in rules
+
+        if r.event == event
+        and r.condition(state)
+    ]
+
+
+def maximal_rules(enabled):
+
+    if not enabled:
+        return []
+
+    max_priority = max(
+        r.priority for r in enabled
+    )
+
+    return [
+
+        r for r in enabled
+
+        if r.priority == max_priority
+    ]
+
+
+def select_rule(enabled):
+
+    if not enabled:
+        return None
+
+    maximal = maximal_rules(enabled)
+
+    maximal.sort(key=lambda r: r.name)
+
+    return maximal[0]
