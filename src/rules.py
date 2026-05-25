@@ -32,7 +32,6 @@ def build_rules(rule_specs):
     for spec in rule_specs:
 
         rules.append(
-
             Rule(
                 name=spec["name"],
                 event=spec["event"],
@@ -45,34 +44,3 @@ def build_rules(rule_specs):
         )
 
     return rules
-
-
-original_specs = [
-    {
-        "name": "r3",
-        "event": "sensor",
-        "condition": "obstacle and highSpeed",
-        "action": "emergencyStop",
-        "priority": 100
-    }
-]
-
-safe_specs = [
-    {
-        "name": "r3a",
-        "event": "sensor",
-        "condition": "obstacle and highSpeed and frontObstacle",
-        "action": "emergencyStop",
-        "priority": 100
-    }
-]
-
-unsafe_specs = [
-    {
-        "name": "r3a",
-        "event": "sensor",
-        "condition": "obstacle",
-        "action": "hazardFlag",
-        "priority": 100
-    }
-]
