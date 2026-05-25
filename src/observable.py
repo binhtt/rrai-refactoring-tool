@@ -1,7 +1,15 @@
-from semantics import delta
+from semantics import (
+    enabled_rules,
+    select_rule,
+    delta
+)
 
 
-def execute_trace(rules, initial_state, events):
+def execute_trace(
+    rules,
+    initial_state,
+    events
+):
 
     state = initial_state.copy()
 
@@ -10,13 +18,11 @@ def execute_trace(rules, initial_state, events):
 
     for event in events:
 
-        enabled = [
-
-            r for r in rules
-
-            if r.event == event
-            and r.condition(state)
-        ]
+        enabled = enabled_rules(
+            rules,
+            state,
+            event
+        )
 
         if not enabled:
 
@@ -38,20 +44,7 @@ def execute_trace(rules, initial_state, events):
 
             continue
 
-        max_priority = max(
-            r.priority for r in enabled
-        )
-
-        maximal = [
-
-            r for r in enabled
-
-            if r.priority == max_priority
-        ]
-
-        maximal.sort(key=lambda r: r.name)
-
-        rule = maximal[0]
+        rule = select_rule(enabled)
 
         next_state = delta(
             state,
