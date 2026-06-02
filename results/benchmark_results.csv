@@ -1,0 +1,6 @@
+Transformation,Equivalent,Divergences,Rate,Runtime
+Lemma 1: Decomposition,True,0,0.0000,12.302130
+Lemma 2: Merge,False,449,0.0898,6.433662
+Lemma 3: Elimination,True,0,0.0000,8.948312
+Lemma 4: Priority Preservation,False,508,0.1016,7.740812
+Counterexample,False,4762,0.9524,4.826703
