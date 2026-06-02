@@ -1,57 +1,202 @@
-import random
+# RRAI REFACTORING VERIFICATION FRAMEWORK
+# IEEE ACCESS VERSION
+#
+# PART 7/7
+# Main Program
+# ============================================================
 
-from rules import build_rules
-from equivalence import check_equivalence
-from utils import banner
 
-from examples.safe_refactoring import (
-    original_specs,
-    safe_specs
-)
-
-from examples.unsafe_refactoring import (
-    unsafe_specs
-)
-
+# ============================================================
+# MAIN EXECUTION
+# ============================================================
 
 if __name__ == "__main__":
 
-    random.seed(42)
+    print("\n")
+    print("=" * 60)
+    print("RRAI REFACTORING VERIFICATION")
+    print("=" * 60)
 
-    original_rules = build_rules(
-        original_specs
+    # --------------------------------------------------------
+    # Formal validation
+    # --------------------------------------------------------
+
+    theorem_results = (
+        TheoremExperiments.run()
     )
 
-    safe_rules = build_rules(
-        safe_specs
+    # --------------------------------------------------------
+    # Monte-Carlo benchmark
+    # --------------------------------------------------------
+
+    benchmark_runner = (
+        BenchmarkRunner()
     )
 
-    unsafe_rules = build_rules(
-        unsafe_specs
+    benchmark_results = (
+        benchmark_runner.run_all()
     )
 
-    banner("RRAI REFACTORING TOOL")
+    # --------------------------------------------------------
+    # Complexity analysis
+    # --------------------------------------------------------
 
-    banner("SAFE REFACTORING")
+    ComplexityAnalysis.print_summary()
 
-    result_safe = check_equivalence(
-        original_rules,
-        safe_rules
+    # --------------------------------------------------------
+    # Statistical analysis
+    # --------------------------------------------------------
+
+    print("\n")
+    print("=" * 60)
+    print("STATISTICAL ANALYSIS")
+    print("=" * 60)
+
+    stats = (
+        StatisticalAnalysis
+        .repeated_runs(
+            ORIGINAL_RB,
+            SAFE_DECOMPOSITION_RB,
+            repetitions=30,
+            iterations=1000
+        )
+    )
+
+    for k, v in stats.items():
+
+        print(
+            f"{k}: "
+            f"{round(v, 6)}"
+        )
+
+    # --------------------------------------------------------
+    # Scalability analysis
+    # --------------------------------------------------------
+
+    print("\n")
+    print("=" * 60)
+    print("SCALABILITY ANALYSIS")
+    print("=" * 60)
+
+    scalability_result = (
+        ScalabilityExperiment.run(
+            ORIGINAL_RB,
+            SAFE_DECOMPOSITION_RB
+        )
+    )
+
+    scalability_df = pd.DataFrame({
+
+        "Samples":
+            scalability_result["sizes"],
+
+        "Runtime":
+            scalability_result["runtime"],
+
+        "DivergenceRate":
+            scalability_result[
+                "divergence_rate"
+            ]
+    })
+
+    print(
+        scalability_df.to_string(
+            index=False
+        )
+    )
+
+    # --------------------------------------------------------
+    # Paper tables
+    # --------------------------------------------------------
+
+    benchmark_df, theorem_df = (
+
+        PaperTables.build(
+            benchmark_results,
+            theorem_results
+        )
+    )
+
+    # --------------------------------------------------------
+    # Export CSV
+    # --------------------------------------------------------
+
+    Exporter.export_benchmark(
+        benchmark_results
+    )
+
+    Exporter.export_theorem(
+        theorem_results
+    )
+
+    scalability_df.to_csv(
+        "scalability_results.csv",
+        index=False
     )
 
     print(
-        "\nObservable equivalence:",
-        result_safe
+        "Saved: scalability_results.csv"
     )
 
-    banner("UNSAFE REFACTORING")
+    # --------------------------------------------------------
+    # Figures
+    # --------------------------------------------------------
 
-    result_unsafe = check_equivalence(
-        original_rules,
-        unsafe_rules
+    FigureGenerator.generate_all(
+        benchmark_results
+    )
+
+    unsafe_checker = (
+        PreservationChecker(
+            ORIGINAL_RB,
+            UNSAFE_PRIORITY_RB
+        )
+    )
+
+    unsafe_result = (
+        unsafe_checker.run(
+            iterations=5000
+        )
+    )
+
+    DivergenceAnalysis.histogram(
+
+        unsafe_result[
+            "divergences"
+        ]
+    )
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+
+    summary = (
+        SummaryReport.build(
+            benchmark_results
+        )
+    )
+
+    print("\n")
+    print("=" * 60)
+    print("FINAL SUMMARY")
+    print("=" * 60)
+
+    print(
+        "Total Experiments:",
+        summary["total"]
     )
 
     print(
-        "\nObservable equivalence:",
-        result_unsafe
+        "Equivalent:",
+        summary["equivalent"]
     )
+
+    print(
+        "Non-equivalent:",
+        summary["non_equivalent"]
+    )
+
+    print("\n")
+    print("=" * 60)
+    print("EXECUTION COMPLETED")
+    print("=" * 60)
