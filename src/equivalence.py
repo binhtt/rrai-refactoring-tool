@@ -1,59 +1,214 @@
-from observable import execute_trace
+# ============================================================
+# TRACE EQUIVALENCE
+#
+# IMPORTANT:
+#
+# Refactoring may rename rules.
+#
+# Therefore equivalence compares:
+#
+# (event, action)
+#
+# instead of
+#
+# (event, rule, action)
+# ============================================================
 
-from simulator import (
-    random_state,
-    random_event_trace
-)
+class TraceEquivalence:
 
+    # --------------------------------------------------------
+    # Projection
+    # --------------------------------------------------------
 
-def check_equivalence(
-    original_rules,
-    refactored_rules,
-    iterations=10000
-):
+    @staticmethod
+    def normalize(
+        trace: List[TraceStep]
+    ):
 
-    for _ in range(iterations):
+        return [
 
-        state = random_state()
+            (
+                step.event,
+                step.action
+            )
 
-        events = random_event_trace(20)
+            for step in trace
+        ]
 
-        sem1, obs1 = execute_trace(
-            original_rules,
-            state,
-            events
+    # --------------------------------------------------------
+    # Equivalence
+    # --------------------------------------------------------
+
+    @staticmethod
+    def equivalent(
+        trace1: List[TraceStep],
+        trace2: List[TraceStep]
+    ) -> bool:
+
+        return (
+
+            TraceEquivalence.normalize(
+                trace1
+            )
+
+            ==
+
+            TraceEquivalence.normalize(
+                trace2
+            )
         )
 
-        sem2, obs2 = execute_trace(
-            refactored_rules,
-            state,
-            events
+    # --------------------------------------------------------
+    # First Divergence
+    # --------------------------------------------------------
+
+    @staticmethod
+    def first_divergence(
+        trace1: List[TraceStep],
+        trace2: List[TraceStep]
+    ):
+
+        t1 = (
+            TraceEquivalence.normalize(
+                trace1
+            )
         )
 
-        if obs1 != obs2:
+        t2 = (
+            TraceEquivalence.normalize(
+                trace2
+            )
+        )
 
-            print("\n================================================")
-            print("COUNTEREXAMPLE FOUND")
-            print("================================================")
+        n = min(
+            len(t1),
+            len(t2)
+        )
 
-            print("\nInitial state:")
-            print(state)
+        for i in range(n):
 
-            print("\nEvents:")
-            print(events)
+            if t1[i] != t2[i]:
 
-            print("\nOriginal semantic trace:")
-            print(sem1)
+                return i
 
-            print("\nRefactored semantic trace:")
-            print(sem2)
+        if len(t1) != len(t2):
 
-            print("\nOriginal observable trace:")
-            print(obs1)
+            return n
 
-            print("\nRefactored observable trace:")
-            print(obs2)
+        return None
 
-            return False
 
-    return True
+# ============================================================
+# PRESERVATION CHECKER
+#
+# Monte-Carlo behavioural verification
+# ============================================================
+
+class PreservationChecker:
+
+    def __init__(
+        self,
+        original_rb: RuleBase,
+        refactored_rb: RuleBase
+    ):
+
+        self.original_rb = (
+            original_rb
+        )
+
+        self.refactored_rb = (
+            refactored_rb
+        )
+
+    def run(
+        self,
+        iterations: int = 5000,
+        trace_length: int = 20
+    ):
+
+        original_exec = (
+            TraceExecutor(
+                self.original_rb
+            )
+        )
+
+        refactored_exec = (
+            TraceExecutor(
+                self.refactored_rb
+            )
+        )
+
+        divergences = []
+
+        start_time = time.time()
+
+        for _ in range(iterations):
+
+            state = random_state()
+
+            events = random_event_trace(
+                trace_length
+            )
+
+            trace1 = (
+                original_exec.execute(
+                    state,
+                    events
+                )
+            )
+
+            trace2 = (
+                refactored_exec.execute(
+                    state,
+                    events
+                )
+            )
+
+            div = (
+                TraceEquivalence
+                .first_divergence(
+                    trace1,
+                    trace2
+                )
+            )
+
+            if div is not None:
+
+                divergences.append(
+                    div
+                )
+
+        elapsed = (
+            time.time()
+            - start_time
+        )
+
+        return {
+
+            "equivalent":
+                len(divergences) == 0,
+
+            "divergence_count":
+                len(divergences),
+
+            "divergence_rate":
+                len(divergences)
+                / iterations,
+
+            "avg_divergence_position":
+                (
+                    float(
+                        np.mean(
+                            divergences
+                        )
+                    )
+                    if divergences
+                    else 0.0
+                ),
+
+            "execution_time":
+                elapsed,
+
+            "divergences":
+                divergences
+        }
