@@ -1,8 +1,43 @@
+# ============================================================
 # RRAI REFACTORING VERIFICATION FRAMEWORK
 # IEEE ACCESS VERSION
 #
+# main.py
+#
+# PART 7/7
 # Main Program
 # ============================================================
+
+import pandas as pd
+
+from validation import (
+    TheoremExperiments,
+    BenchmarkRunner
+)
+
+from analysis import (
+    ComplexityAnalysis,
+    StatisticalAnalysis,
+    ScalabilityExperiment,
+    DivergenceAnalysis
+)
+
+from reporting import (
+    PaperTables,
+    Exporter,
+    FigureGenerator,
+    SummaryReport
+)
+
+from rulebases import (
+    ORIGINAL_RB,
+    SAFE_DECOMPOSITION_RB,
+    UNSAFE_PRIORITY_RB
+)
+
+from semantics import (
+    PreservationChecker
+)
 
 
 # ============================================================
