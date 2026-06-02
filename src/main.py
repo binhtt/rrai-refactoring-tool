@@ -1,7 +1,6 @@
 # RRAI REFACTORING VERIFICATION FRAMEWORK
 # IEEE ACCESS VERSION
 #
-# PART 7/7
 # Main Program
 # ============================================================
 
