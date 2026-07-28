@@ -1,226 +1,36 @@
 # RRAI Refactoring Verification Framework
 
-A research framework for verifying correctness-preserving refactorings in Reactive Rule-Based AI (RRAI) systems.
+A Python framework for formally verifying correctness-preserving rule refactorings in reactive rule-based artificial intelligence systems.
 
-This repository accompanies our work on formal verification of rule-based AI refactorings using observable trace semantics, theorem-driven validation, and Monte-Carlo behavioral equivalence checking.
+This repository accompanies the paper:
 
----
+> **A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems**
 
-# Overview
-
-Reactive Rule-Based AI systems are frequently refactored to improve maintainability, modularity, and performance. However, refactorings may unintentionally alter system behavior.
-
-This framework provides:
-
-- Formal operational semantics for RRAI systems
-- Observable trace semantics
-- Behavioral equivalence checking
-- Correctness-preserving refactoring validation
-- Monte-Carlo preservation verification
-- Scalability and statistical analysis
-- Experimental evaluation of safe and unsafe transformations
+The framework combines finite-domain proof-obligation checking with execution-based behavioural validation to verify whether rule transformations preserve observable system behaviour.
 
 ---
 
-# Framework Architecture
+## Features
 
-The framework is organized into seven modules.
+- Formal proof-obligation verification
+  - Rule decomposition
+  - Rule merging
+  - Rule elimination
+  - Priority adjustment
 
-```text
-src/
-├── core.py
-├── semantics.py
-├── rulebases.py
-├── validation.py
-├── analysis.py
-├── reporting.py
-└── main.py
+- Execution-based behavioural validation
+
+- Automatic counterexample generation for invalid refactorings
+
+- Scalability evaluation
+
+---
+
+## Repository Structure
+
 ```
-
-## Module Responsibilities
-
-### core.py
-
-Core semantic structures:
-
-- Rule
-- TraceStep
-- TransitionSystem
-- RuleBase
-- Random state generation
-
----
-
-### semantics.py
-
-Execution semantics:
-
-- ExecutionEngine
-- TraceExecutor
-- TraceEquivalence
-- PreservationChecker
-
----
-
-### rulebases.py
-
-Benchmark rule systems:
-
-- Original rule base
-- Safe decomposition
-- Safe merge
-- Dead-rule elimination
-- Priority-preserving transformations
-- Unsafe counterexample
-
----
-
-### validation.py
-
-Formal verification:
-
-- FormalValidator
-- TheoremDrivenTests
-- BenchmarkRunner
-- TheoremExperiments
-
----
-
-### analysis.py
-
-Experimental evaluation:
-
-- ScalabilityExperiment
-- StatisticalAnalysis
-- DivergenceAnalysis
-- ComplexityAnalysis
-
----
-
-### reporting.py
-
-Reporting and visualization:
-
-- Result tables
-- Figure generation
-- CSV export
-- Summary reports
-
----
-
-### main.py
-
-End-to-end experimental pipeline.
-
----
-
-# Formal Semantics
-
-The framework follows an observable operational semantics.
-
-A rule is represented as:
-
-R = (event, guard, action, priority)
-
-Execution semantics:
-
-(s,e) → (s',a)
-
-where
-
-- s is the current state
-- e is the triggering event
-- a is the selected action
-- s' is the successor state
-
-Conflict resolution is priority-based.
-
-Observable traces are projected onto:
-
-(event, action)
-
-pairs.
-
-Two executions are behaviorally equivalent iff their observable traces are identical.
-
----
-
-# Supported Refactorings
-
-The framework evaluates the following transformations.
-
-## Lemma 1
-
-Safe Decomposition
-
-A rule may be split into multiple rules if:
-
-- guards form a partition
-- action remains unchanged
-- priority remains unchanged
-
-Expected result:
-
-Equivalent = True
-
----
-
-## Lemma 2
-
-Rule Merge
-
-Rules are merged using guard disjunction.
-
-Expected result:
-
-May preserve or violate behavior depending on actions and priorities.
-
----
-
-## Lemma 3
-
-Dead Rule Elimination
-
-Removes rules that can never fire.
-
-Expected result:
-
-Equivalent = True
-
----
-
-## Lemma 4
-
-Priority Preservation
-
-Behavior is preserved only if maximal enabled rule ordering remains unchanged.
-
-Expected result:
-
-Equivalent only under strict ordering preservation.
-
----
-
-## Counterexample
-
-Unsafe priority modifications intentionally alter behavior.
-
-Expected result:
-
-Equivalent = False
-
----
-
-# Repository Structure
-
-```text
-RRAI-Refactoring-Verification/
-│
-├── README.md
-├── LICENSE
-├── requirements.txt
-│
-├── src/
+.
+├── src
 │   ├── core.py
 │   ├── semantics.py
 │   ├── rulebases.py
@@ -229,42 +39,123 @@ RRAI-Refactoring-Verification/
 │   ├── reporting.py
 │   └── main.py
 │
-├── results/
-│   ├── benchmark_results.csv
+├── results
 │   ├── theorem_results.csv
+│   ├── benchmark_results.csv
 │   ├── scalability_results.csv
-│   ├── runtime_scalability.png
-│   ├── divergence_rate.png
-│   ├── benchmark_runtime_bar.png
-│   └── divergence_histogram.png
+│   └── divergence_positions.png
 │
-├── docs/
-│   ├── architecture.md
-│   ├── semantics.md
-│   ├── refactoring_theorems.md
-│   ├── experiments.md
-│   └── results.md
-│
-└── examples/
-    ├── decomposition_example.py
-    ├── merge_example.py
-    ├── elimination_example.py
-    ├── priority_example.py
-    └── counterexample.py
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-# Installation
+## Implemented Refactorings
 
-Clone the repository:
+### Correctness-preserving
 
-```bash
-git clone https://github.com/binhtt/rrai-refactoring-tool.git
-cd rrai-refactoring-tool
+- Rule decomposition
+- Rule merging
+- Rule elimination
+- Priority adjustment
+
+### Negative controls
+
+- Unsafe decomposition
+- Invalid merge
+- Invalid priority adjustment
+
+---
+
+## Experimental Evaluation
+
+The framework performs three experiments.
+
+### 1. Proof-obligation verification
+
+Finite-domain verification of the proposed correctness conditions.
+
+Output:
+
+```
+results/theorem_results.csv
 ```
 
-Install dependencies:
+---
+
+### 2. Behavioural validation
+
+10,000 randomly generated executions are used to compare the original and transformed rule bases.
+
+Output:
+
+```
+results/benchmark_results.csv
+```
+
+Summary
+
+| Transformation | Divergences |
+|---------------|------------:|
+| Decomposition | 0 |
+| Merging | 0 |
+| Elimination | 0 |
+| Priority adjustment | 0 |
+| Invalid merge | 2466 |
+| Invalid priority adjustment | 3081 |
+| Unsafe decomposition | 4929 |
+
+---
+
+### 3. Scalability
+
+Execution time is measured over increasing numbers of traces.
+
+Output
+
+```
+results/scalability_results.csv
+```
+
+---
+
+## Divergence Analysis
+
+The repository reports where behavioural divergence first appears for incorrect refactorings.
+
+```
+results/divergence_positions.png
+```
+
+The figure shows the distribution of first-divergence positions for the three negative-control transformations.
+
+---
+
+## Running
+
+Execute the complete experiment.
+
+```bash
+python src/main.py
+```
+
+or
+
+```bash
+python src/main.py \
+    --traces 10000 \
+    --trace-length 20 \
+    --repetitions 30
+```
+
+---
+
+## Requirements
+
+Python 3.10+
+
+Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -272,160 +163,20 @@ pip install -r requirements.txt
 
 ---
 
-# Requirements
+## Citation
 
-```text
-Python >= 3.10
+If you use this framework, please cite the corresponding paper.
 
-numpy
-pandas
-matplotlib
+```bibtex
+@article{Trinh2026RRAI,
+  title={A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems},
+  author={Trinh, Thanh-Binh and Ha, Nguyen Viet},
+  year={2026}
+}
 ```
 
 ---
 
-# Running the Framework
+## License
 
-Execute the complete experimental pipeline:
-
-```bash
-python src/main.py
-```
-
-This performs:
-
-1. Formal validation
-2. Monte-Carlo verification
-3. Statistical analysis
-4. Scalability analysis
-5. Table generation
-6. Figure generation
-7. CSV export
-
----
-
-# Example Output
-
-```text
-============================================================
-FORMAL VALIDATION
-============================================================
-
-Decomposition Failures: 0
-Merge Failures: 1
-
-============================================================
-Lemma 1: Decomposition
-============================================================
-
-Equivalent: True
-Divergences: 0
-```
-
----
-
-# Experimental Evaluation
-
-The framework includes:
-
-## Formal Validation
-
-Exhaustive theorem-driven verification.
-
----
-
-## Monte-Carlo Verification
-
-Randomized behavioral equivalence checking.
-
----
-
-## Statistical Analysis
-
-Repeated execution with confidence intervals.
-
----
-
-## Scalability Analysis
-
-Sample sizes:
-
-100
-500
-1000
-2000
-5000
-10000
-
----
-
-## Divergence Analysis
-
-Detection and visualization of behavioral differences.
-
----
-
-# Generated Results
-
-Running the framework produces:
-
-```text
-results/
-
-benchmark_results.csv
-theorem_results.csv
-scalability_results.csv
-
-runtime_scalability.png
-divergence_rate.png
-benchmark_runtime_bar.png
-divergence_histogram.png
-```
-
----
-
-# Complexity
-
-Single Trace Execution
-
-O(k · n)
-
-Monte-Carlo Verification
-
-O(m · k · n)
-
-Memory Complexity
-
-O(k)
-
-where
-
-- k = trace length
-- n = number of rules
-- m = Monte-Carlo samples
-
----
-
-# Reproducibility
-
-All experiments use a fixed random seed:
-
-```python
-GLOBAL_SEED = 42
-```
-
-ensuring deterministic reproduction of published results.
-
----
-
-# License
-
-MIT License
-
----
-
-# Authors
-
-Thanh-Binh Trinh
-
-Research on correctness-preserving refactoring verification for Reactive Rule-Based AI systems.
+MIT License.
