@@ -6,7 +6,7 @@ This repository accompanies the paper:
 
 > **A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems**
 
-The framework combines finite-domain proof-obligation checking with execution-based behavioural validation to verify whether rule transformations preserve observable system behaviour.
+The framework combines finite-domain proof-obligation verification with execution-based behavioural validation to determine whether rule transformations preserve observable system behaviour.
 
 ---
 
@@ -18,17 +18,19 @@ The framework combines finite-domain proof-obligation checking with execution-ba
   - Rule elimination
   - Priority adjustment
 
-- Execution-based behavioural validation
+- Execution-based behavioural validation using Monte Carlo simulation
 
 - Automatic counterexample generation for invalid refactorings
 
 - Scalability evaluation
 
+- Automatic generation of CSV reports and visualization
+
 ---
 
 ## Repository Structure
 
-```
+```text
 .
 ├── src
 │   ├── core.py
@@ -39,9 +41,24 @@ The framework combines finite-domain proof-obligation checking with execution-ba
 │   ├── reporting.py
 │   └── main.py
 │
+├── examples
+│   ├── decomposition_example.py
+│   ├── merge_example.py
+│   ├── elimination_example.py
+│   ├── priority_example.py
+│   ├── counterexample.py
+│   └── complete_demo.py
+│
+├── docs
+│   ├── architecture.md
+│   ├── semantics.md
+│   ├── refactoring_theorems.md
+│   ├── experiments.md
+│   └── results.md
+│
 ├── results
-│   ├── theorem_results.csv
-│   ├── benchmark_results.csv
+│   ├── proof_obligations.csv
+│   ├── behavioural_results.csv
 │   ├── scalability_results.csv
 │   └── divergence_positions.png
 │
@@ -53,14 +70,14 @@ The framework combines finite-domain proof-obligation checking with execution-ba
 
 ## Implemented Refactorings
 
-### Correctness-preserving
+### Correctness-Preserving Refactorings
 
 - Rule decomposition
 - Rule merging
 - Rule elimination
 - Priority adjustment
 
-### Negative controls
+### Negative Controls
 
 - Unsafe decomposition
 - Invalid merge
@@ -70,90 +87,110 @@ The framework combines finite-domain proof-obligation checking with execution-ba
 
 ## Experimental Evaluation
 
-The framework performs three experiments.
+The framework performs three complementary experiments.
 
-### 1. Proof-obligation verification
+### 1. Proof-Obligation Verification
 
-Finite-domain verification of the proposed correctness conditions.
+The proposed correctness conditions are verified over a finite verification domain.
 
-Output:
+Output
 
+```text
+results/proof_obligations.csv
 ```
-results/theorem_results.csv
-```
+
+Expected results
+
+| Transformation | Result |
+|---------------|--------|
+| Decomposition | PASS |
+| Merging | PASS |
+| Elimination | PASS |
+| Priority Adjustment | PASS |
+| Invalid Merge | FAIL |
+| Invalid Priority Adjustment | FAIL |
+| Unsafe Decomposition | FAIL |
 
 ---
 
-### 2. Behavioural validation
+### 2. Behavioural Validation
 
-10,000 randomly generated executions are used to compare the original and transformed rule bases.
+The framework executes 10,000 randomly generated traces to compare the behaviour of the original and transformed rule bases.
 
-Output:
+Output
 
+```text
+results/behavioural_results.csv
 ```
-results/benchmark_results.csv
-```
 
-Summary
+Typical results
 
 | Transformation | Divergences |
 |---------------|------------:|
 | Decomposition | 0 |
 | Merging | 0 |
 | Elimination | 0 |
-| Priority adjustment | 0 |
-| Invalid merge | 2466 |
-| Invalid priority adjustment | 3081 |
-| Unsafe decomposition | 4929 |
+| Priority Adjustment | 0 |
+| Invalid Merge | 2466 |
+| Invalid Priority Adjustment | 3081 |
+| Unsafe Decomposition | 4929 |
 
 ---
 
-### 3. Scalability
+### 3. Scalability Evaluation
 
-Execution time is measured over increasing numbers of traces.
+Execution time is measured for increasing numbers of execution traces.
 
 Output
 
-```
+```text
 results/scalability_results.csv
 ```
+
+Typical workloads
+
+- 100 traces
+- 500 traces
+- 1,000 traces
+- 2,000 traces
+- 5,000 traces
+- 10,000 traces
 
 ---
 
 ## Divergence Analysis
 
-The repository reports where behavioural divergence first appears for incorrect refactorings.
+The framework automatically generates
 
-```
+```text
 results/divergence_positions.png
 ```
 
-The figure shows the distribution of first-divergence positions for the three negative-control transformations.
+The figure illustrates the distribution of the first behavioural divergence for each negative-control refactoring.
+
+Correctness-preserving refactorings should produce no divergence.
 
 ---
 
-## Running
+## Running the Framework
 
-Execute the complete experiment.
+Run the complete experimental evaluation
 
 ```bash
 python src/main.py
 ```
 
-or
+or execute the demonstration
 
 ```bash
-python src/main.py \
-    --traces 10000 \
-    --trace-length 20 \
-    --repetitions 30
+python examples/complete_demo.py
 ```
 
 ---
 
 ## Requirements
 
-Python 3.10+
+- Python 3.10 or later
 
 Install dependencies
 
@@ -163,9 +200,35 @@ pip install -r requirements.txt
 
 ---
 
+## Documentation
+
+Additional documentation is available in the `docs/` directory.
+
+- `architecture.md` — framework architecture
+- `semantics.md` — operational semantics
+- `refactoring_theorems.md` — correctness-preserving refactorings
+- `experiments.md` — experimental methodology
+- `results.md` — interpretation of generated results
+
+---
+
+## Citation
+
+If you use this framework in your research, please cite the accompanying paper.
+
+```bibtex
+@article{Trinh2026,
+  author  = {Thanh-Binh Trinh and Van Cuong Nguyen and Nguyen Viet Ha},
+  title   = {A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems},
+  year    = {2026},
+  note    = {Preprint}
+}
+```
+
+> **Note:** Please update the citation with the journal name, volume, pages, and DOI once the paper is officially published.
 
 ---
 
 ## License
 
-MIT License.
+This project is released under the MIT License.
