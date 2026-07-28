@@ -1,36 +1,37 @@
 """
 Operational semantics for reactive rule-based AI systems.
 
-This module implements
+This module implements:
 
-- enabled rule computation
-- transitive closure of priorities
-- maximal enabled rules
-- deterministic rule selection
-- one-step execution
-- trace execution
-- behavioural correspondence checking
+- enabled-rule computation;
+- transitive closure of priority relations;
+- maximal enabled rules;
+- deterministic rule selection;
+- single-step execution;
+- trace execution;
+- transition and trace correspondence;
+- bidirectional behavioural validation.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Sequence, Set, Tuple, Optional
+from typing import List, Optional, Sequence, Set, Tuple
 
 from core import (
     Rule,
     RuleBase,
     State,
     Transition,
-    eval_guard,
     apply_action,
+    eval_guard,
     freeze_state,
 )
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Enabled rules
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def enabled_rules(
     rulebase: RuleBase,
@@ -38,94 +39,120 @@ def enabled_rules(
     event: str,
 ) -> List[Rule]:
     """
-    Return all enabled rules for one event.
+    Return all rules enabled by the supplied state and event.
     """
 
     return [
         rule
         for rule in rulebase.rules
-        if rule.event == event
-        and eval_guard(rule.guard, state)
+        if (
+            rule.event == event
+            and eval_guard(rule.guard, state)
+        )
     ]
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Priority relation
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 @lru_cache(maxsize=None)
-def _closure_cached(priority_tuple):
+def _closure_cached(
+    priority_tuple: Tuple[Tuple[str, str], ...],
+) -> frozenset[Tuple[str, str]]:
+    """
+    Compute and cache the transitive closure of a priority relation.
+    """
 
     closure = set(priority_tuple)
 
     changed = True
 
     while changed:
-
         changed = False
-        new = set(closure)
+        expanded = set(closure)
 
-        for a, b in closure:
-            for c, d in closure:
-
-                if b == c and (a, d) not in new:
-                    new.add((a, d))
+        for lower1, higher1 in closure:
+            for lower2, higher2 in closure:
+                if (
+                    higher1 == lower2
+                    and (lower1, higher2) not in expanded
+                ):
+                    expanded.add(
+                        (lower1, higher2)
+                    )
                     changed = True
 
-        closure = new
+        closure = expanded
 
     return frozenset(closure)
 
 
 def transitive_closure(
-    priority: Set[Tuple[str, str]]
+    priority: Set[Tuple[str, str]],
 ) -> Set[Tuple[str, str]]:
+    """
+    Return the transitive closure of a strict priority relation.
+
+    A pair ``(r1, r2)`` means that ``r2`` has higher priority than ``r1``.
+    """
+
+    priority_tuple = tuple(
+        sorted(priority)
+    )
 
     return set(
-        _closure_cached(tuple(sorted(priority)))
+        _closure_cached(priority_tuple)
     )
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Maximal enabled rules
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def maximal_enabled(
     rulebase: RuleBase,
     state: State,
     event: str,
 ) -> List[Rule]:
+    """
+    Return enabled rules that are not dominated by another enabled rule.
+    """
 
-    enabled = enabled_rules(rulebase, state, event)
+    enabled = enabled_rules(
+        rulebase,
+        state,
+        event,
+    )
 
-    closure = transitive_closure(rulebase.priority)
+    closure = transitive_closure(
+        rulebase.priority
+    )
 
-    maximal = []
+    maximal_rules: List[Rule] = []
 
     for rule in enabled:
-
-        dominated = any(
-
-            (rule.name, other.name) in closure
-
+        is_dominated = any(
+            (
+                rule.name,
+                other.name,
+            ) in closure
             for other in enabled
-
             if other.name != rule.name
-
         )
 
-        if not dominated:
-            maximal.append(rule)
+        if not is_dominated:
+            maximal_rules.append(rule)
 
     return sorted(
-        maximal,
-        key=lambda r: r.name,
+        maximal_rules,
+        key=lambda item: item.name,
     )
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Rule selection
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def select_rule(
     rulebase: RuleBase,
@@ -133,35 +160,38 @@ def select_rule(
     event: str,
 ) -> Optional[Rule]:
     """
-    Deterministic selection.
+    Select one maximal enabled rule deterministically.
 
-    If multiple incomparable maximal rules exist,
-    choose the lexicographically smallest name.
+    When several incomparable maximal rules exist, the lexicographically
+    smallest rule name is selected.
     """
 
-    maximal = maximal_enabled(
+    maximal_rules = maximal_enabled(
         rulebase,
         state,
         event,
     )
 
-    if not maximal:
+    if not maximal_rules:
         return None
 
-    return maximal[0]
+    return maximal_rules[0]
 
 
-# --------------------------------------------------------------------
-# One execution step
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Single-step execution
+# ---------------------------------------------------------------------------
 
 def step(
     rulebase: RuleBase,
     state: State,
     event: str,
-):
+) -> Tuple[State, Transition]:
+    """
+    Execute one event-processing step.
+    """
 
-    rule = select_rule(
+    selected_rule = select_rule(
         rulebase,
         state,
         event,
@@ -169,12 +199,10 @@ def step(
 
     before = freeze_state(state)
 
-    if rule is None:
-
+    if selected_rule is None:
         after = dict(state)
 
         transition = Transition(
-
             event=event,
             rule=None,
             action="tau",
@@ -186,14 +214,13 @@ def step(
 
     after = apply_action(
         state,
-        rule.action,
+        selected_rule.action,
     )
 
     transition = Transition(
-
         event=event,
-        rule=rule.name,
-        action=rule.action,
+        rule=selected_rule.name,
+        action=selected_rule.action,
         before=before,
         after=freeze_state(after),
     )
@@ -201,22 +228,23 @@ def step(
     return after, transition
 
 
-# --------------------------------------------------------------------
-# Execute one trace
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Trace execution
+# ---------------------------------------------------------------------------
 
 def run_trace(
     rulebase: RuleBase,
     initial_state: State,
     events: Sequence[str],
-):
+) -> List[Transition]:
+    """
+    Execute a complete event sequence.
+    """
 
     state = dict(initial_state)
-
-    trace = []
+    trace: List[Transition] = []
 
     for event in events:
-
         state, transition = step(
             rulebase,
             state,
@@ -228,177 +256,298 @@ def run_trace(
     return trace
 
 
-# --------------------------------------------------------------------
-# Behavioural correspondence
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Transition and trace correspondence
+# ---------------------------------------------------------------------------
 
 def transitions_correspond(
-    t1: Transition,
-    t2: Transition,
-    correspondence,
+    transition1: Transition,
+    transition2: Transition,
+    correspondence: Set[Tuple[str, str]],
 ) -> bool:
+    """
+    Check whether two transitions correspond.
+    """
 
-    if t1.event != t2.event:
+    if transition1.event != transition2.event:
         return False
 
-    if t1.action != t2.action:
+    if transition1.action != transition2.action:
         return False
 
-    if t1.after != t2.after:
+    if transition1.after != transition2.after:
         return False
 
-    if t1.rule is None or t2.rule is None:
-
+    if (
+        transition1.rule is None
+        or transition2.rule is None
+    ):
         return (
-            t1.rule is None
-            and
-            t2.rule is None
+            transition1.rule is None
+            and transition2.rule is None
         )
 
     return (
-        t1.rule,
-        t2.rule,
+        transition1.rule,
+        transition2.rule,
     ) in correspondence
 
 
 def traces_correspond(
-    trace1,
-    trace2,
-    correspondence,
-):
+    trace1: Sequence[Transition],
+    trace2: Sequence[Transition],
+    correspondence: Set[Tuple[str, str]],
+) -> bool:
+    """
+    Check whether two complete traces correspond.
+    """
 
     if len(trace1) != len(trace2):
         return False
 
     return all(
-
         transitions_correspond(
-            t1,
-            t2,
+            transition1,
+            transition2,
             correspondence,
         )
-
-        for t1, t2
-
+        for transition1, transition2
         in zip(trace1, trace2)
-
     )
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Bidirectional behavioural validation
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def run_corresponding_trace_pair(
     rb1: RuleBase,
     rb2: RuleBase,
     initial_state: State,
     events: Sequence[str],
-    correspondence,
-):
+    correspondence: Set[Tuple[str, str]],
+) -> Tuple[
+    List[Transition],
+    List[Transition],
+    Optional[int],
+]:
     """
-    Execute two corresponding rule bases simultaneously.
+    Execute two rule bases under the same initial state and event sequence.
+
+    At each position, every maximal transition in either rule base must have
+    a corresponding maximal transition in the other rule base with:
+
+    - a corresponding rule;
+    - the same event;
+    - the same action;
+    - the same successor state.
+
+    The check is bidirectional and therefore detects additional
+    nondeterministic behaviour introduced by a transformation.
 
     Returns
+    -------
+    trace1:
+        Execution prefix for the first rule base.
 
-        trace1
-        trace2
-        first_divergence_position
+    trace2:
+        Execution prefix for the second rule base.
+
+    first_divergence_position:
+        One-based position of the first divergence, or None when no
+        divergence is detected.
     """
 
-    s1 = dict(initial_state)
-    s2 = dict(initial_state)
+    state1 = dict(initial_state)
+    state2 = dict(initial_state)
 
-    trace1 = []
-    trace2 = []
+    trace1: List[Transition] = []
+    trace2: List[Transition] = []
 
-    for position, event in enumerate(events, start=1):
+    for position, event in enumerate(
+        events,
+        start=1,
+    ):
+        maximal1 = maximal_enabled(
+            rb1,
+            state1,
+            event,
+        )
 
-        maximal1 = maximal_enabled(rb1, s1, event)
-        maximal2 = maximal_enabled(rb2, s2, event)
+        maximal2 = maximal_enabled(
+            rb2,
+            state2,
+            event,
+        )
 
-        #
-        # tau transition
-        #
-
+        # Both systems perform a tau transition.
         if not maximal1 and not maximal2:
+            before1 = freeze_state(state1)
+            before2 = freeze_state(state2)
 
-            b1 = freeze_state(s1)
-            b2 = freeze_state(s2)
-
-            t1 = Transition(
-                event,
-                None,
-                "tau",
-                b1,
-                b1,
+            transition1 = Transition(
+                event=event,
+                rule=None,
+                action="tau",
+                before=before1,
+                after=before1,
             )
 
-            t2 = Transition(
-                event,
-                None,
-                "tau",
-                b2,
-                b2,
+            transition2 = Transition(
+                event=event,
+                rule=None,
+                action="tau",
+                before=before2,
+                after=before2,
             )
 
-            trace1.append(t1)
-            trace2.append(t2)
+            trace1.append(transition1)
+            trace2.append(transition2)
 
             continue
 
         matches = []
 
-        matched1 = set()
-        matched2 = set()
+        matched_rule_names1: Set[str] = set()
+        matched_rule_names2: Set[str] = set()
 
-        for r1 in maximal1:
-
-            for r2 in maximal2:
-
+        for rule1 in maximal1:
+            for rule2 in maximal2:
                 if (
-                    r1.name,
-                    r2.name,
+                    rule1.name,
+                    rule2.name,
                 ) not in correspondence:
                     continue
 
-                if r1.action != r2.action:
+                if rule1.action != rule2.action:
                     continue
 
-                ns1 = apply_action(
-                    s1,
-                    r1.action,
+                next_state1 = apply_action(
+                    state1,
+                    rule1.action,
                 )
 
-                ns2 = apply_action(
-                    s2,
-                    r2.action,
+                next_state2 = apply_action(
+                    state2,
+                    rule2.action,
                 )
 
-                if ns1 != ns2:
+                if next_state1 != next_state2:
                     continue
 
                 matches.append(
                     (
-                        r1,
-                        r2,
-                        ns1,
-                        ns2,
+                        rule1.name,
+                        rule2.name,
+                        rule1,
+                        rule2,
+                        next_state1,
+                        next_state2,
                     )
                 )
 
-                matched1.add(r1.name)
-                matched2.add(r2.name)
+                matched_rule_names1.add(
+                    rule1.name
+                )
 
-        #
-        # bidirectional checking
-        #
+                matched_rule_names2.add(
+                    rule2.name
+                )
 
+        maximal_rule_names1 = {
+            rule.name
+            for rule in maximal1
+        }
+
+        maximal_rule_names2 = {
+            rule.name
+            for rule in maximal2
+        }
+
+        # A divergence occurs if at least one maximal rule in either system
+        # has no corresponding maximal rule in the other system.
         if (
-            {r.name for r in maximal1} != matched1
-            or
-            {r.name for r in maximal2} != matched2
+            maximal_rule_names1
+            != matched_rule_names1
+            or maximal_rule_names2
+            != matched_rule_names2
         ):
+            unmatched_rule1 = next(
+                (
+                    rule
+                    for rule in maximal1
+                    if rule.name
+                    not in matched_rule_names1
+                ),
+                maximal1[0]
+                if maximal1
+                else None,
+            )
+
+            unmatched_rule2 = next(
+                (
+                    rule
+                    for rule in maximal2
+                    if rule.name
+                    not in matched_rule_names2
+                ),
+                maximal2[0]
+                if maximal2
+                else None,
+            )
+
+            next_state1 = (
+                dict(state1)
+                if unmatched_rule1 is None
+                else apply_action(
+                    state1,
+                    unmatched_rule1.action,
+                )
+            )
+
+            next_state2 = (
+                dict(state2)
+                if unmatched_rule2 is None
+                else apply_action(
+                    state2,
+                    unmatched_rule2.action,
+                )
+            )
+
+            transition1 = Transition(
+                event=event,
+                rule=(
+                    None
+                    if unmatched_rule1 is None
+                    else unmatched_rule1.name
+                ),
+                action=(
+                    "tau"
+                    if unmatched_rule1 is None
+                    else unmatched_rule1.action
+                ),
+                before=freeze_state(state1),
+                after=freeze_state(next_state1),
+            )
+
+            transition2 = Transition(
+                event=event,
+                rule=(
+                    None
+                    if unmatched_rule2 is None
+                    else unmatched_rule2.name
+                ),
+                action=(
+                    "tau"
+                    if unmatched_rule2 is None
+                    else unmatched_rule2.action
+                ),
+                before=freeze_state(state2),
+                after=freeze_state(next_state2),
+            )
+
+            trace1.append(transition1)
+            trace2.append(transition2)
 
             return (
                 trace1,
@@ -406,42 +555,43 @@ def run_corresponding_trace_pair(
                 position,
             )
 
-        #
-        # continue execution
-        #
-
-        r1, r2, ns1, ns2 = sorted(
-
+        # Continue with one corresponding maximal-rule pair.
+        (
+            _,
+            _,
+            selected_rule1,
+            selected_rule2,
+            next_state1,
+            next_state2,
+        ) = sorted(
             matches,
-
-            key=lambda x: (
-                x[0].name,
-                x[1].name,
+            key=lambda item: (
+                item[0],
+                item[1],
             ),
-
         )[0]
 
-        t1 = Transition(
-            event,
-            r1.name,
-            r1.action,
-            freeze_state(s1),
-            freeze_state(ns1),
+        transition1 = Transition(
+            event=event,
+            rule=selected_rule1.name,
+            action=selected_rule1.action,
+            before=freeze_state(state1),
+            after=freeze_state(next_state1),
         )
 
-        t2 = Transition(
-            event,
-            r2.name,
-            r2.action,
-            freeze_state(s2),
-            freeze_state(ns2),
+        transition2 = Transition(
+            event=event,
+            rule=selected_rule2.name,
+            action=selected_rule2.action,
+            before=freeze_state(state2),
+            after=freeze_state(next_state2),
         )
 
-        trace1.append(t1)
-        trace2.append(t2)
+        trace1.append(transition1)
+        trace2.append(transition2)
 
-        s1 = ns1
-        s2 = ns2
+        state1 = next_state1
+        state2 = next_state2
 
     return (
         trace1,
