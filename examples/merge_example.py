@@ -1,35 +1,81 @@
-# ============================================================
-# MERGE EXAMPLE
-# ============================================================
+"""
+Example: correctness-preserving rule merging.
 
-from src.rulebases import (
-    ORIGINAL_RB,
-    SAFE_MERGE_RB
-)
+This script verifies that rules r11 and r4 are safely represented by
+r15_sensor and r15_timer in the merged rule base.
 
-from src.semantics import (
-    PreservationChecker
-)
+Run from the repository root:
+
+    python examples/merge_example.py
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
 
 
-def main():
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIRECTORY = PROJECT_ROOT / "src"
 
-    checker = PreservationChecker(
-        ORIGINAL_RB,
-        SAFE_MERGE_RB
+if str(SRC_DIRECTORY) not in sys.path:
+    sys.path.insert(
+        0,
+        str(SRC_DIRECTORY),
     )
 
-    result = checker.run(
-        iterations=1000
+
+from rulebases import MERGED, PRIORITY_ADJUSTED
+from validation import domain, verify_merge
+
+
+def main() -> None:
+    """
+    Verify the merging of r11 and r4.
+    """
+
+    verification_domain = domain(
+        predicates=[
+            "goalVisible",
+            "idle",
+            "narrowCorridor",
+        ],
+        events=[
+            "sensor",
+            "timer",
+            "watchdog",
+        ],
     )
 
-    print("\nMERGE EXAMPLE")
-    print("=" * 50)
+    result = verify_merge(
+        original_rulebase=PRIORITY_ADJUSTED,
+        transformed_rulebase=MERGED,
+        verification_domain=verification_domain,
+        original_names=[
+            "r11",
+            "r4",
+        ],
+        merged_names=[
+            "r15_sensor",
+            "r15_timer",
+        ],
+    )
 
-    for k, v in result.items():
+    print("Rule merging verification")
+    print("=========================")
+    print("Original rules: r11, r4")
+    print("Merged representation: r15_sensor, r15_timer")
+    print()
 
-        if k != "divergences":
-            print(f"{k}: {v}")
+    for obligation, passed in result.details.items():
+        status = "PASS" if passed else "FAIL"
+        print(f"{obligation}: {status}")
+
+    print()
+    print(
+        "Overall result:",
+        "PASS" if result.passed else "FAIL",
+    )
 
 
 if __name__ == "__main__":
