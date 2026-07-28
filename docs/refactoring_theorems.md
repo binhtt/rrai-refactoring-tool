@@ -1,108 +1,275 @@
-# Refactoring Correctness Theorems
+# Correctness-Preserving Refactoring Theorems
 
-## Lemma 1: Safe Decomposition
+## Overview
 
-A rule
+This document summarizes the correctness-preserving rule refactorings
+implemented in the RRAI Refactoring Verification Framework.
 
-r = (g,a,p)
+Each transformation is accompanied by a set of proof obligations that
+must hold before the transformation is considered behaviour-preserving.
 
-may be decomposed into
-
-r1 = (g1,a,p)
-
-r2 = (g2,a,p)
-
-iff
-
-g1 ∨ g2 = g
-
-and
-
-g1 ∧ g2 = False
-
-and action and priority remain unchanged.
-
-Result:
-
-Observable behavior is preserved.
-
-Experimental result:
-
-Equivalent = True
+The framework automatically checks these obligations using the functions
+provided in `src/validation.py`.
 
 ---
 
-## Lemma 2: Safe Merge
+# Supported Refactorings
 
-Two rules may be merged iff
+The framework currently supports four correctness-preserving
+transformations.
 
-- identical action
-- identical priority
+- Rule decomposition
+- Rule merging
+- Rule elimination
+- Priority adjustment
 
-Merged rule:
-
-(g1 ∨ g2, a, p)
-
-Experimental result:
-
-Merge example in benchmark produced divergences because actions differed.
-
-Equivalent = False
+Each transformation has a corresponding verification procedure.
 
 ---
 
-## Lemma 3: Dead Rule Elimination
+# 1. Rule Decomposition
 
-A rule may be removed iff
+## Description
 
-its guard is unsatisfiable.
+A complex rule is replaced by multiple simpler rules whose combined
+behaviour is equivalent to the original rule.
 
-Example:
+Example
 
-guard = False
+```
+r3
+      ↓
 
-Such a rule can never fire.
+r3a
+r3b
+```
 
-Result:
+## Proof Obligations
 
-Observable behavior is preserved.
+The framework verifies that
 
-Experimental result:
+- the decomposed guards form a complete partition of the original guard;
+- the combined actions preserve the behaviour of the original rule;
+- the priority relations are correctly inherited.
 
-Equivalent = True
+Verification function
+
+```
+verify_decomposition()
+```
 
 ---
 
-## Lemma 4: Priority Preservation
+# 2. Rule Merging
 
-Behavior is preserved only if relative priority ordering remains unchanged.
+## Description
 
-Changing maximal enabled rule selection can alter execution.
+Several rules with identical behaviour are merged into a more compact
+representation.
 
-Experimental result:
+Example
 
-Equivalent = False
+```
+r11
+r4
+      ↓
+
+r15_sensor
+r15_timer
+```
+
+## Proof Obligations
+
+The framework checks
+
+- guard union correctness;
+- action equivalence;
+- priority compatibility.
+
+Verification function
+
+```
+verify_merge()
+```
 
 ---
 
-## Counterexample
+# 3. Rule Elimination
 
-Consider
+## Description
 
-r1:
-priority = 100
-action = moveForward
+A redundant rule is removed without affecting observable behaviour.
 
-r2:
-priority = 50
-action = turnLeft
+Example
 
-Changing priority ordering changes selected actions.
+```
+r16
 
-Result:
+↓
 
-Behavior changes.
+removed
+```
 
-Experimental result:
+## Proof Obligations
 
-Equivalent = False
+The eliminated rule must
+
+- never become a maximal enabled rule;
+- never influence the selected execution.
+
+Verification function
+
+```
+verify_elimination()
+```
+
+---
+
+# 4. Priority Adjustment
+
+## Description
+
+Priority relations are modified while preserving the set of maximal
+enabled rules.
+
+Example
+
+```
+Before
+
+r6
+r4
+
+After
+
+r6 < r4
+```
+
+## Proof Obligations
+
+The framework verifies that
+
+- the maximal enabled rule set remains unchanged.
+
+Verification function
+
+```
+verify_priority()
+```
+
+---
+
+# Global Verification
+
+The function
+
+```
+proof_obligations()
+```
+
+executes every supported theorem and returns a collection of
+verification results.
+
+The generated report is written to
+
+```
+results/proof_obligations.csv
+```
+
+---
+
+# Behavioural Validation
+
+The theorem verification is complemented by execution-based behavioural
+validation.
+
+For every verified transformation, the framework executes corresponding
+rule bases under identical initial states and event sequences.
+
+Behavioural equivalence requires
+
+- identical rule execution;
+- identical state transitions;
+- identical final states.
+
+Any mismatch is reported as a behavioural divergence.
+
+---
+
+# Negative Controls
+
+The repository also includes intentionally incorrect transformations.
+
+These examples demonstrate situations in which the proof obligations are
+violated.
+
+## Invalid Merge
+
+Two incompatible rules are merged.
+
+Expected result
+
+```
+FAIL
+```
+
+Behavioural validation should detect execution divergence.
+
+---
+
+## Invalid Priority Adjustment
+
+An incorrect priority relation changes the selected maximal rule.
+
+Expected result
+
+```
+FAIL
+```
+
+Behavioural validation should produce counterexamples.
+
+---
+
+## Unsafe Decomposition
+
+A rule is decomposed without preserving its original semantics.
+
+Expected result
+
+```
+FAIL
+```
+
+Behavioural divergence should be observed.
+
+---
+
+# Experimental Validation
+
+Each theorem is validated using two complementary approaches.
+
+1. Proof obligation verification
+
+The formal conditions defined above are checked exhaustively over the
+finite verification domain.
+
+2. Behavioural validation
+
+Monte Carlo execution compares the original and transformed rule bases
+under randomly generated executions.
+
+A transformation is considered correctness-preserving only when both
+verification stages succeed.
+
+---
+
+# Summary
+
+The framework combines theorem-based verification with execution-based
+validation.
+
+This combination provides stronger confidence than using either
+technique independently and enables automatic verification of
+correctness-preserving rule refactorings for reactive rule-based AI
+systems.
