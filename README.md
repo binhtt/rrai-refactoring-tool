@@ -163,17 +163,6 @@ pip install -r requirements.txt
 
 ---
 
-## Citation
-
-If you use this framework, please cite the corresponding paper.
-
-```bibtex
-@article{Trinh2026RRAI,
-  title={A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems},
-  author={Trinh, Thanh-Binh and Ha, Nguyen Viet},
-  year={2026}
-}
-```
 
 ---
 
