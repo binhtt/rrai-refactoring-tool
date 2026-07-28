@@ -1,35 +1,72 @@
-# ============================================================
-# PRIORITY PRESERVATION EXAMPLE
-# ============================================================
+"""
+Example: correctness-preserving priority adjustment.
 
-from src.rulebases import (
-    ORIGINAL_RB,
-    SAFE_PRIORITY_RB
-)
+This script verifies that the added priority relation preserves the set of
+maximal enabled rules over the finite verification domain.
 
-from src.semantics import (
-    PreservationChecker
-)
+Run from the repository root:
+
+    python examples/priority_example.py
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
 
 
-def main():
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIRECTORY = PROJECT_ROOT / "src"
 
-    checker = PreservationChecker(
-        ORIGINAL_RB,
-        SAFE_PRIORITY_RB
+if str(SRC_DIRECTORY) not in sys.path:
+    sys.path.insert(
+        0,
+        str(SRC_DIRECTORY),
     )
 
-    result = checker.run(
-        iterations=1000
+
+from rulebases import ORIGINAL, PRIORITY_ADJUSTED
+from validation import domain, verify_priority
+
+
+def main() -> None:
+    """
+    Verify the correctness-preserving priority adjustment.
+    """
+
+    verification_domain = domain(
+        predicates=[
+            "goalVisible",
+            "idle",
+            "narrowCorridor",
+        ],
+        events=[
+            "sensor",
+            "timer",
+            "watchdog",
+        ],
     )
 
-    print("\nPRIORITY PRESERVATION")
-    print("=" * 50)
+    result = verify_priority(
+        before=ORIGINAL,
+        after=PRIORITY_ADJUSTED,
+        verification_domain=verification_domain,
+    )
 
-    for k, v in result.items():
+    print("Priority adjustment verification")
+    print("===============================")
+    print("Added priority relation: r6 < r4")
+    print()
 
-        if k != "divergences":
-            print(f"{k}: {v}")
+    for obligation, passed in result.details.items():
+        status = "PASS" if passed else "FAIL"
+        print(f"{obligation}: {status}")
+
+    print()
+    print(
+        "Overall result:",
+        "PASS" if result.passed else "FAIL",
+    )
 
 
 if __name__ == "__main__":
