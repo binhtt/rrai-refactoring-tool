@@ -1,322 +1,354 @@
-# ============================================================
-# core.py
-#
-# Core Data Structures
-# Rule Model
-# Transition System
-# Rule Base
-# ============================================================
+"""
+Core data structures and state-manipulation functions for the
+RRAI Refactoring Verification Framework.
 
-import copy
-import random
+This module defines:
 
-import numpy as np
+- Rule
+- RuleBase
+- Transition
+- GuardEvaluator
+- eval_guard
+- apply_action
 
+Execution semantics such as enabled-rule computation, priority handling,
+rule selection, and trace execution are implemented in semantics.py.
+"""
+
+from __future__ import annotations
+
+import ast
 from dataclasses import dataclass
-from typing import Dict
-from typing import List
-from typing import Optional
+from functools import lru_cache
+from typing import Dict, List, Mapping, Optional, Set, Tuple
 
 
-# ============================================================
-# GLOBAL RANDOM SEED
-# ============================================================
+# ---------------------------------------------------------------------------
+# Type aliases
+# ---------------------------------------------------------------------------
 
-GLOBAL_SEED = 42
+State = Dict[str, bool]
+PriorityRelation = Set[Tuple[str, str]]
+FrozenState = Tuple[Tuple[str, bool], ...]
 
-random.seed(GLOBAL_SEED)
-np.random.seed(GLOBAL_SEED)
 
-
-# ============================================================
-# TRACE ELEMENT
-# ============================================================
+# ---------------------------------------------------------------------------
+# Core rule-base model
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class TraceStep:
-
-    event: str
-    rule: str
-    action: str
-
-
-# ============================================================
-# RULE
-# ============================================================
-
-@dataclass
 class Rule:
+    """
+    A reactive rule.
+
+    Attributes
+    ----------
+    name:
+        Unique rule identifier.
+
+    event:
+        Event that triggers evaluation of the rule.
+
+    guard:
+        Boolean expression evaluated over the current state.
+
+    action:
+        Action executed when the rule is selected.
+    """
 
     name: str
     event: str
     guard: str
     action: str
-    priority: int
-
-    def enabled(
-        self,
-        state: Dict
-    ) -> bool:
-
-        try:
-
-            return bool(
-                eval(
-                    self.guard,
-                    {},
-                    state
-                )
-            )
-
-        except Exception:
-
-            return False
 
 
-# ============================================================
-# TRANSITION SYSTEM
-# ============================================================
-
-class TransitionSystem:
-
-    def __init__(self):
-
-        self.action_effects = {
-
-            "moveForward": {
-                "moving": True
-            },
-
-            "turnLeft": {
-                "direction": "left"
-            },
-
-            "turnRight": {
-                "direction": "right"
-            },
-
-            "emergencyStop": {
-                "moving": False,
-                "emergency": True
-            },
-
-            "returnToCharge": {
-                "charging": True
-            },
-
-            "dock": {
-                "docked": True
-            },
-
-            "evade": {
-                "evading": True
-            },
-
-            "hazardFlag": {
-                "hazard": True
-            },
-
-            "grant": {
-                "access": True
-            },
-
-            "deny": {
-                "access": False
-            }
-        }
-
-    def delta(
-        self,
-        state: Dict,
-        action: str
-    ) -> Dict:
-
-        next_state = copy.deepcopy(
-            state
-        )
-
-        if action in self.action_effects:
-
-            next_state.update(
-                self.action_effects[action]
-            )
-
-        return next_state
-
-
-# ============================================================
-# RULE BASE
-# ============================================================
-
+@dataclass
 class RuleBase:
+    """
+    A reactive rule base with a strict partial priority relation.
 
-    def __init__(
-        self,
-        rules: List[Rule]
-    ):
+    The priority relation contains pairs of the form:
 
-        self.rules = rules
+        (lower_priority_rule, higher_priority_rule)
 
-    def enabled_rules(
-        self,
-        state: Dict,
-        event: str
-    ) -> List[Rule]:
+    Therefore, a pair ``("r1", "r2")`` means that ``r2`` has priority
+    over ``r1`` whenever both rules are enabled.
+    """
 
-        enabled = []
+    rules: List[Rule]
+    priority: PriorityRelation
+
+    def by_name(self) -> Dict[str, Rule]:
+        """
+        Return a dictionary mapping rule names to Rule objects.
+
+        Raises
+        ------
+        ValueError
+            If duplicate rule names are detected.
+        """
+
+        mapping: Dict[str, Rule] = {}
 
         for rule in self.rules:
+            if rule.name in mapping:
+                raise ValueError(f"Duplicate rule name: {rule.name}")
 
-            if rule.event != event:
-                continue
+            mapping[rule.name] = rule
 
-            if rule.enabled(state):
-                enabled.append(rule)
+        return mapping
 
-        return enabled
 
-    def maximal_enabled(
-        self,
-        state: Dict,
-        event: str
-    ) -> List[Rule]:
+@dataclass(frozen=True)
+class Transition:
+    """
+    A single transition produced during rule-base execution.
 
-        enabled = self.enabled_rules(
-            state,
-            event
+    Attributes
+    ----------
+    event:
+        Input event processed at this transition.
+
+    rule:
+        Name of the selected rule, or None when no rule is selected.
+
+    action:
+        Executed action. The special action ``tau`` represents a
+        no-operation transition.
+
+    before:
+        State before execution, represented as a sorted immutable tuple.
+
+    after:
+        State after execution, represented as a sorted immutable tuple.
+    """
+
+    event: str
+    rule: Optional[str]
+    action: str
+    before: FrozenState
+    after: FrozenState
+
+
+# ---------------------------------------------------------------------------
+# Guard evaluation
+# ---------------------------------------------------------------------------
+
+class GuardEvaluator(ast.NodeVisitor):
+    """
+    Safe evaluator for Boolean rule guards.
+
+    Supported syntax
+    ----------------
+    - Boolean variables
+    - True and False
+    - and
+    - or
+    - not
+
+    Arbitrary Python expressions, function calls, comparisons, arithmetic,
+    attribute access, and other unsupported syntax are rejected.
+    """
+
+    def __init__(self, state: Mapping[str, bool]) -> None:
+        self.state = state
+
+    def visit_Expression(self, node: ast.Expression) -> bool:
+        return bool(self.visit(node.body))
+
+    def visit_Name(self, node: ast.Name) -> bool:
+        if node.id == "True":
+            return True
+
+        if node.id == "False":
+            return False
+
+        return bool(self.state.get(node.id, False))
+
+    def visit_Constant(self, node: ast.Constant) -> bool:
+        if isinstance(node.value, bool):
+            return node.value
+
+        raise ValueError(
+            "Only Boolean constants True and False are supported in guards"
         )
 
-        if len(enabled) == 0:
-            return []
+    def visit_BoolOp(self, node: ast.BoolOp) -> bool:
+        values = [bool(self.visit(value)) for value in node.values]
 
-        max_priority = max(
-            rule.priority
-            for rule in enabled
+        if isinstance(node.op, ast.And):
+            return all(values)
+
+        if isinstance(node.op, ast.Or):
+            return any(values)
+
+        raise ValueError(
+            f"Unsupported Boolean operator: {type(node.op).__name__}"
         )
 
-        maximal = [
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> bool:
+        if isinstance(node.op, ast.Not):
+            return not bool(self.visit(node.operand))
 
-            rule
-
-            for rule in enabled
-
-            if rule.priority == max_priority
-        ]
-
-        return maximal
-
-    def select(
-        self,
-        state: Dict,
-        event: str
-    ) -> Optional[Rule]:
-
-        maximal = self.maximal_enabled(
-            state,
-            event
+        raise ValueError(
+            f"Unsupported unary operator: {type(node.op).__name__}"
         )
 
-        if len(maximal) == 0:
-            return None
-
-        maximal.sort(
-            key=lambda r: r.name
+    def generic_visit(self, node: ast.AST) -> bool:
+        raise ValueError(
+            f"Unsupported guard syntax: {ast.dump(node)}"
         )
 
-        return maximal[0]
 
+@lru_cache(maxsize=None)
+def _parse_guard(expression: str) -> ast.Expression:
+    """
+    Parse and cache a Boolean guard expression.
 
-# ============================================================
-# RULE BASE FACTORY
-# ============================================================
+    Parameters
+    ----------
+    expression:
+        Guard expression written using Python Boolean syntax.
 
-def build_rulebase(
-    specs: List[Dict]
-) -> RuleBase:
+    Returns
+    -------
+    ast.Expression
+        Parsed abstract syntax tree.
 
-    rules = []
+    Raises
+    ------
+    ValueError
+        If the expression is empty or syntactically invalid.
+    """
 
-    for spec in specs:
+    if not expression or not expression.strip():
+        raise ValueError("Guard expression must not be empty")
 
-        rules.append(
+    try:
+        parsed = ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"Invalid guard expression: {expression!r}"
+        ) from exc
 
-            Rule(
-                name=spec["name"],
-                event=spec["event"],
-                guard=spec["guard"],
-                action=spec["action"],
-                priority=spec["priority"]
-            )
+    if not isinstance(parsed, ast.Expression):
+        raise ValueError(
+            f"Expected an expression guard, received: {expression!r}"
         )
 
-    return RuleBase(rules)
+    return parsed
 
 
-# ============================================================
-# EVENT DOMAIN
-# ============================================================
+def eval_guard(expression: str, state: Mapping[str, bool]) -> bool:
+    """
+    Evaluate a Boolean rule guard over a state.
 
-EVENTS = [
+    Missing state variables are interpreted as False.
 
-    "sensor",
+    Parameters
+    ----------
+    expression:
+        Boolean guard expression.
 
-    "timer",
+    state:
+        Mapping from predicate names to Boolean values.
 
-    "watchdog"
-]
+    Returns
+    -------
+    bool
+        Evaluation result.
+    """
+
+    parsed = _parse_guard(expression)
+    evaluator = GuardEvaluator(state)
+
+    return bool(evaluator.visit(parsed))
 
 
-# ============================================================
-# RANDOM STATE GENERATOR
-# ============================================================
+# ---------------------------------------------------------------------------
+# State conversion helpers
+# ---------------------------------------------------------------------------
 
-def random_state() -> Dict:
+def freeze_state(state: Mapping[str, bool]) -> FrozenState:
+    """
+    Convert a mutable state mapping to a deterministic immutable form.
+    """
 
-    return {
+    return tuple(sorted((name, bool(value)) for name, value in state.items()))
 
-        "obstacle":
-            random.choice([True, False]),
 
-        "highSpeed":
-            random.choice([True, False]),
+def thaw_state(state: FrozenState) -> State:
+    """
+    Convert an immutable transition state back to a mutable dictionary.
+    """
 
-        "frontObstacle":
-            random.choice([True, False]),
+    return dict(state)
 
-        "collisionRisk":
-            random.choice([True, False]),
 
-        "batteryLow":
-            random.choice([True, False]),
+# ---------------------------------------------------------------------------
+# Action semantics
+# ---------------------------------------------------------------------------
 
-        "chargingStationNear":
-            random.choice([True, False]),
+def apply_action(state: Mapping[str, bool], action: str) -> State:
+    """
+    Apply an action to a state.
 
-        "goalVisible":
-            random.choice([True, False]),
+    A fresh dictionary is always returned; the input state is never modified.
 
-        "idle":
-            random.choice([True, False]),
+    Parameters
+    ----------
+    state:
+        Current Boolean state.
 
-        "admin":
-            random.choice([True, False]),
+    action:
+        Action name to execute.
 
-        "untrustedNetwork":
-            random.choice([True, False])
+    Returns
+    -------
+    State
+        Updated state.
+
+    Notes
+    -----
+    Actions not explicitly associated with a state update are treated as
+    observational actions and leave the state unchanged. This includes,
+    for example, ``stop``, ``reduceSpeed``, ``restartSensor``, and
+    ``relocalize`` in the current case study.
+    """
+
+    updated_state: State = {
+        name: bool(value)
+        for name, value in state.items()
     }
 
+    if action == "emergencyStop":
+        updated_state["highSpeed"] = False
+        updated_state["idle"] = True
 
-# ============================================================
-# RANDOM EVENT TRACE
-# ============================================================
+    elif action == "moveForward":
+        updated_state["idle"] = False
 
-def random_event_trace(
-    length: int = 20
-) -> List[str]:
+    elif action in {"turnLeft", "reroute", "evade"}:
+        updated_state["pathBlocked"] = False
 
-    return [
+    elif action == "returnToCharge":
+        updated_state["batteryLow"] = False
 
-        random.choice(EVENTS)
+    elif action == "shutdown":
+        updated_state["idle"] = True
+        updated_state["highSpeed"] = False
 
-        for _ in range(length)
-    ]
+    elif action == "dock":
+        updated_state["batteryLow"] = False
+        updated_state["batteryCritical"] = False
+
+    elif action == "hazardFlag":
+        updated_state["hazardFlag"] = True
+
+    elif action == "safeMode":
+        updated_state["idle"] = True
+
+    elif action == "tau":
+        pass
+
+    return updated_state
