@@ -1,3 +1,8 @@
-Lemma,Failures
-Decomposition,0
-Merge,1
+transformation,proof_obligations,details
+Decomposition,Pass,"{""action_preservation"": true, ""guard_partition"": true, ""priority_inheritance"": true}"
+Merging,Pass,"{""common_action"": true, ""guard_union_disjointness"": true, ""priority_compatibility"": true}"
+Elimination,Pass,"{""never_maximal"": true}"
+Priority adjustment,Pass,"{""maxenabled_preserved"": true}"
+Invalid merge,Fail,"{""common_action"": true, ""guard_union_disjointness"": true, ""priority_compatibility"": false}"
+Invalid priority adjustment,Fail,"{""maxenabled_preserved"": false}"
+Unsafe decomposition,Fail,"{""action_preservation"": false, ""guard_partition"": false, ""priority_inheritance"": true}"
