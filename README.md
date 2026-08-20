@@ -1,113 +1,111 @@
 # RRAI Refactoring Verification Framework
 
-A Python framework for verifying correctness-preserving rule refactorings in reactive rule-based artificial intelligence (RRAI) systems.
+A Python framework for verifying correctness-preserving rule refactorings
+in reactive rule-based artificial intelligence (RRAI) systems.
 
 This repository accompanies the paper:
 
-> **A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems**
+> **A Calculus of Correctness-Preserving Rule Refactorings for Reactive
+> Rule-Based Artificial Intelligence Systems**
 
-The framework combines exhaustive finite-domain proof-obligation verification with execution-based behavioural validation to evaluate whether structural rule transformations preserve observable system behaviour.
+The framework combines exhaustive finite-domain proof-obligation
+verification with correspondence-based behavioural validation to evaluate
+whether structural rule transformations preserve observable system
+behaviour.
 
 ---
 
 ## Features
 
 - End-to-end refactoring verification
-  - Automatic refactoring-type detection
-  - Automatic identification of changed rules
-  - Rule-base well-formedness and frame checks
-  - Exhaustive proof-obligation checking
-  - Structured witnesses for failed obligations
-  - Counterexample generation
+  - automatic refactoring-type detection;
+  - automatic identification of changed rules;
+  - rule-base well-formedness and frame checks;
+  - exhaustive proof-obligation checking;
+  - structured witnesses for failed obligations;
+  - counterexample generation.
 
-- Supported refactoring classes
-  - Rule decomposition
-  - Rule merging
-  - Rule elimination
-  - Priority adjustment
+- Supported refactorings
+  - rule decomposition;
+  - rule merging;
+  - rule elimination;
+  - priority adjustment.
 
 - Correspondence-based behavioural validation
-  - Bidirectional comparison of maximal-rule choices
-  - Rule-correspondence checking
-  - Action and successor-state comparison
-  - First-divergence detection
+  - bidirectional comparison of maximal-rule choices;
+  - refactoring-induced rule correspondence;
+  - action and successor-state comparison;
+  - first-divergence detection.
 
 - Negative-control experiments
-  - Unsafe decomposition
-  - Invalid merge
-  - Invalid priority adjustment
+  - invalid merge;
+  - invalid priority adjustment;
+  - unsafe decomposition.
 
-- Reproducibility support
-  - Manuscript-ready Tables 2--6
-  - Figure 3 in PNG and PDF formats
-  - Raw scalability measurements
-  - Algorithm-1 verification results
-  - Experimental metadata
+- Experimental evaluation
+  - complete finite-domain verification;
+  - 10,000-trace behavioural validation;
+  - first-divergence-position analysis;
+  - scalability evaluation of complete correspondence-based
+    behavioural validation.
 
 ---
 
 ## Repository Structure
 
 ```text
-.
-├── src
-│   ├── core.py
-│   ├── semantics.py
-│   ├── rulebases.py
-│   ├── validation.py
-│   ├── analysis.py
-│   ├── reporting.py
-│   └── main.py
-│
-├── examples
-│   ├── decomposition_example.py
-│   ├── merge_example.py
-│   ├── elimination_example.py
-│   ├── priority_example.py
-│   ├── counterexample.py
-│   └── complete_demo.py
-│
-├── docs
+rrai-refactoring-tool/
+├── docs/
 │   ├── architecture.md
-│   ├── semantics.md
-│   ├── refactoring_theorems.md
 │   ├── experiments.md
-│   └── results.md
+│   ├── refactoring_theorems.md
+│   ├── results.md
+│   └── semantics.md
 │
-├── results
-│   ├── algorithm_results.json
-│   ├── behavioural_validation.csv
-│   ├── counterexamples.json
-│   ├── divergence_positions.json
-│   ├── experiment_metadata.json
-│   ├── figure3_divergence_positions.pdf
-│   ├── figure3_divergence_positions.png
-│   ├── main_sequence.json
+├── examples/
+│   ├── complete_demo.py
+│   ├── counterexample.py
+│   ├── decomposition_example.py
+│   ├── elimination_example.py
+│   ├── merge_example.py
+│   └── priority_example.py
+│
+├── results/
+│   ├── divergence.png
 │   ├── proof_obligations.csv
-│   ├── scalability.csv
-│   ├── scalability_runs.csv
 │   ├── table2_structural_changes.csv
 │   ├── table3_valid_transformations.csv
 │   ├── table4_invalid_transformations.csv
 │   ├── table5_counterexamples.csv
 │   └── table6_scalability.csv
 │
-├── requirements.txt
-└── README.md
+├── src/
+│   ├── analysis.py
+│   ├── core.py
+│   ├── main.py
+│   ├── reporting.py
+│   ├── rulebases.py
+│   ├── semantics.py
+│   └── validation.py
+│
+├── LICENSE
+├── README.md
+└── requirements.txt
 ```
+
+The `results/` directory contains the manuscript-facing tables and
+figure checked into the repository.
 
 ---
 
-## Implemented Refactorings
-
-### Correctness-Preserving Refactorings
+## Correctness-Preserving Refactorings
 
 The artifact evaluates four preservation-valid transformations:
 
-- Rule decomposition
-- Rule merging
-- Rule elimination
-- Priority adjustment
+- decomposition;
+- merging;
+- elimination;
+- priority adjustment.
 
 The main case-study sequence is:
 
@@ -127,7 +125,9 @@ Merged system
 Decomposed system
 ```
 
-The merge is implemented as an actual two-to-one transformation:
+### Rule Merging
+
+The merge is implemented as a genuine two-to-one transformation:
 
 ```text
 r11 ----\
@@ -135,38 +135,64 @@ r11 ----\
 r4  ----/
 ```
 
-Thus, the implementation directly represents the many-to-one correspondence
+The refactoring-induced correspondence contains:
 
 ```text
 (r11, r15)
 (r4,  r15)
 ```
 
-and reproduces the cardinality-changing merge described in the manuscript.
+The implementation therefore directly represents the
+cardinality-changing merge formalised in the paper.
 
-### Negative Controls
+The structural effect is:
 
-Three intentionally invalid transformations are included:
+```text
+14 rules -> 13 rules
+7 priority relations -> 6 priority relations
+```
 
-- Invalid merge
-- Invalid priority adjustment
-- Unsafe decomposition
+at the merging stage.
 
-The invalid priority-adjustment control removes the priority relation
+---
+
+## Negative Controls
+
+Three intentionally invalid transformations are evaluated:
+
+- invalid merge;
+- invalid priority adjustment;
+- unsafe decomposition.
+
+### Invalid Priority Adjustment
+
+The invalid-priority experiment removes:
 
 ```text
 r9 < r3
 ```
 
-without introducing the reverse relation. Therefore, `r9` and `r3` become incomparable when both are enabled, matching the intervention described in the manuscript.
+without adding the reverse relation.
 
-The invalid-merge rule base is kept structurally well formed: priority relations incident to removed rules are removed before the intended priority-compatibility violation is introduced.
+Thus, `r9` and `r3` become incomparable when both are enabled.
+
+This corresponds to the intervention described in the manuscript rather
+than priority reversal.
+
+### Invalid Merge
+
+The invalid-merge target is kept structurally well formed.
+
+Priority relations incident to removed rules are not retained as
+dangling relations. The negative control deliberately violates the
+required priority-compatibility condition involving the merged rule.
 
 ---
 
 ## Complete Finite Verification Domain
 
-Algorithm 1 is evaluated over the complete finite state-event domain
+Proof-obligation verification is performed over the complete finite
+state-event domain
 
 ```text
 D = S x E
@@ -180,7 +206,7 @@ The case study contains 16 Boolean state predicates and three events:
 E = {sensor, timer, watchdog}
 ```
 
-Therefore,
+Therefore:
 
 ```text
 |S| = 2^16 = 65,536
@@ -188,37 +214,31 @@ Therefore,
 |D| = 65,536 x 3 = 196,608
 ```
 
-state-event contexts are exhaustively considered for each transformation.
-
-This removes the need for manually selected transformation-specific verification domains.
+All 196,608 state-event contexts are exhaustively considered for every
+preservation-valid and intentionally invalid transformation.
 
 ---
 
-## Algorithm 1 Verification
+## End-to-End Verification
 
-The implementation provides an end-to-end verification procedure that:
+The verification implementation performs the following workflow:
 
-1. checks rule-base well-formedness;
+1. validates rule-base well-formedness;
 2. detects the refactoring type;
-3. identifies the changed rules;
-4. constructs the transformation-induced correspondence;
-5. checks the applicable preservation obligations over the complete finite domain;
-6. records witnesses for failed obligations; and
-7. generates a behavioural counterexample when one is found.
+3. identifies changed rules;
+4. checks applicable frame conditions;
+5. evaluates transformation-specific proof obligations;
+6. constructs the refactoring-induced rule correspondence;
+7. records failed obligations and witnesses;
+8. searches for a behavioural counterexample when applicable.
 
-The complete structured results are stored in:
-
-```text
-results/algorithm_results.json
-```
-
-A tabular summary is stored in:
+The detailed summary is stored in:
 
 ```text
 results/proof_obligations.csv
 ```
 
-Expected results:
+Expected results are:
 
 | Transformation | Detected Type | Status |
 |---|---|---|
@@ -230,7 +250,7 @@ Expected results:
 | Invalid priority adjustment | PriorityAdjustment | Fail |
 | Unsafe decomposition | Decomposition | Fail |
 
-The intentionally invalid transformations fail the expected preservation obligations:
+The negative controls fail the expected preservation conditions:
 
 | Transformation | Failed obligation(s) |
 |---|---|
@@ -240,15 +260,15 @@ The intentionally invalid transformations fail the expected preservation obligat
 
 ---
 
-## Structural Validation
+## Manuscript Results
 
-The generated structural summary is stored in:
+### Table 2 — Structural Changes
+
+Data:
 
 ```text
 results/table2_structural_changes.csv
 ```
-
-It reproduces the structural changes reported in Table 2:
 
 | Stage | Rules | Priority relations | Structural change |
 |---|---:|---:|---|
@@ -257,39 +277,15 @@ It reproduces the structural changes reported in Table 2:
 | Merging | 13 | 6 | `r11,r4 -> r15` |
 | Decomposition | 14 | 8 | `r3 -> {r3a,r3b}` |
 
-In particular, the merge changes the rule-base cardinality from 14 to 13 rules.
-
 ---
 
-## Behavioural Validation
+### Table 3 — Preservation-Valid Transformations
 
-Execution-based behavioural validation complements the exhaustive proof-obligation verification.
-
-For the default experiment, the framework generates:
-
-```text
-10,000 traces
-20 events per trace
-seed = 20260723
-```
-
-The same generated initial states and event sequences are reused for all transformation cases.
-
-At each execution step, behavioural validation compares the maximal-rule choices of the original and transformed systems bidirectionally under the transformation-induced correspondence relation. It additionally compares the executed actions and successor states.
-
-The aggregate results are stored in:
-
-```text
-results/behavioural_validation.csv
-```
-
-The manuscript-facing valid-transformation results are stored in:
+Data:
 
 ```text
 results/table3_valid_transformations.csv
 ```
-
-Expected results:
 
 | Transformation | Proof obligations | Divergences | Rate |
 |---|---|---:|---:|
@@ -298,19 +294,18 @@ Expected results:
 | Elimination | Pass | 0 | 0.00% |
 | Priority adjustment | Pass | 0 | 0.00% |
 
-All four preservation-valid transformations therefore exhibit zero behavioural divergences in the 10,000 sampled executions.
+All four preservation-valid transformations produce zero divergence in
+the 10,000 sampled executions.
 
 ---
 
-## Negative-Control Results
+### Table 4 — Intentionally Invalid Transformations
 
-Results for intentionally invalid transformations are stored in:
+Data:
 
 ```text
 results/table4_invalid_transformations.csv
 ```
-
-Expected results:
 
 | Transformation | Failed obligation(s) | Divergences | Rate |
 |---|---|---:|---:|
@@ -320,64 +315,134 @@ Expected results:
 
 where:
 
-- `PC` = PriorityCompatibility
-- `MRP` = MaximalRulePreservation
-- `GP` = GuardPartition
-- `AP` = ActionPreservation
+- `PC` = PriorityCompatibility;
+- `MRP` = MaximalRulePreservation;
+- `GP` = GuardPartition;
+- `AP` = ActionPreservation.
 
-The invalid-priority result corresponds to deletion of `r9 < r3`, not priority reversal.
+---
 
-Structured proof-obligation and behavioural counterexamples are stored in:
+### Table 5 — Counterexamples
 
-```text
-results/counterexamples.json
-```
-
-A manuscript-facing counterexample summary is stored in:
+Data:
 
 ```text
 results/table5_counterexamples.csv
 ```
 
+| Transformation | Proof obligations | Violated condition | Counterexample |
+|---|---|---|---|
+| Invalid merge | Fail | PriorityCompatibility | Found |
+| Invalid priority adjustment | Fail | MaximalRulePreservation | Found |
+| Unsafe decomposition | Fail | GuardPartition; ActionPreservation | Found |
+
+Counterexamples provide diagnostic evidence for transformations that
+violate preservation conditions.
+
 ---
 
-## First-Divergence Analysis
+### Table 6 — Scalability and Execution Cost
 
-For each divergent execution, the framework records the first trace position at which the original and transformed systems cease to correspond.
-
-The raw positions are stored in:
+Data:
 
 ```text
-results/divergence_positions.json
+results/table6_scalability.csv
 ```
 
-Figure 3 is generated as:
+The measured operation is:
 
 ```text
-results/figure3_divergence_positions.png
-results/figure3_divergence_positions.pdf
+full_correspondence_based_behavioural_validation
 ```
 
-Only the three intentionally invalid transformations are included in this figure because the preservation-valid transformations exhibit no behavioural divergence.
+Each workload uses traces of length 20 and is repeated 30 times.
+
+| Number of traces | Execution time (s), mean ± SD |
+|---:|---:|
+| 100 | 0.163 ± 0.050 |
+| 500 | 0.746 ± 0.179 |
+| 1,000 | 1.520 ± 0.358 |
+| 2,000 | 3.031 ± 0.568 |
+| 5,000 | 7.638 ± 0.731 |
+| 10,000 | 15.266 ± 0.361 |
+
+The timing experiment measures complete correspondence-based behavioural
+validation rather than trace generation alone.
+
+Wall-clock timing may vary across machines and executions. The checked-in
+CSV contains the aggregate measurements used in the accompanying
+manuscript.
+
+---
+
+## Figure 3 — First-Divergence Positions
+
+The manuscript figure is stored in:
+
+```text
+results/divergence.png
+```
+
+The x-axis represents the first-divergence position in the execution
+trace.
+
+The y-axis represents the number of divergent executions whose first
+observable behavioural difference occurs at that position.
+
+The figure includes:
+
+- invalid merge;
+- invalid priority adjustment;
+- unsafe decomposition.
+
+The preservation-valid transformations are excluded because no sampled
+behavioural divergence was observed.
+
+---
+
+## Behavioural Validation
+
+The default behavioural experiment uses:
+
+```text
+number of traces = 10,000
+trace length     = 20
+random seed      = 20260723
+```
+
+The same generated initial states and event sequences are reused across
+the evaluated transformations.
+
+At every execution step, the framework:
+
+1. computes enabled rules;
+2. computes maximal enabled rules;
+3. compares maximal choices bidirectionally under the refactoring-induced
+   correspondence relation;
+4. compares selected-rule correspondence, actions, and successor states;
+5. continues the sampled trace using a deterministic corresponding rule
+   pair when all maximal choices correspond.
+
+Execution-based validation provides complementary empirical evidence.
+It is not used as a substitute for proof-obligation verification.
 
 ---
 
 ## Scalability Evaluation
 
-The scalability experiment measures the execution time of the **complete correspondence-based behavioural-validation procedure**.
+The scalability experiment measures complete correspondence-based
+behavioural validation.
 
-The timed operation includes:
+The timed procedure includes:
 
-- enabled-rule computation;
+- rule enabling;
 - maximal-rule computation;
-- bidirectional rule-correspondence checking;
+- bidirectional correspondence checking;
 - action comparison;
-- successor-state comparison; and
-- continuation of the corresponding execution traces.
+- successor-state comparison;
+- deterministic continuation of corresponding sampled traces.
 
-Random input generation is performed outside the timed region.
-
-The experiment uses the preservation-valid decomposition transformation and keeps the rule-base structure and trace length fixed while varying only the number of sampled traces.
+Input generation is performed outside the timed region.
 
 The evaluated workloads are:
 
@@ -390,49 +455,34 @@ The evaluated workloads are:
 10000
 ```
 
-traces, with:
+with:
 
 ```text
 trace length = 20
-repetitions = 30
+repetitions  = 30
 ```
 
-Aggregate timing results are stored in:
+The checked-in aggregate measurements are provided in:
 
 ```text
-results/scalability.csv
 results/table6_scalability.csv
 ```
 
-The exact timing of every repetition is stored in:
-
-```text
-results/scalability_runs.csv
-```
-
-The default experiment therefore records:
-
-```text
-6 workloads x 30 repetitions = 180 raw timing runs
-```
-
-The submitted Table 6 is generated directly from these raw measurements.
-
 ---
 
-## Reproducibility
+## Running the Framework
 
 ### Requirements
 
 Python 3.10 or later is recommended.
 
-Install the dependencies from a clean environment:
+Install dependencies using:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-The dependency file contains:
+The dependency file includes:
 
 ```text
 numpy>=1.24
@@ -441,94 +491,86 @@ pandas>=2.0
 pytest>=7.0
 ```
 
-### Run the Complete Experiment
+### Complete Workflow
 
-From the repository root, execute:
+From the repository root:
 
 ```bash
 python src/main.py
 ```
 
-The default run performs:
+The default configuration performs:
 
 ```text
 complete finite-domain proof-obligation verification
 10,000 behavioural-validation traces per transformation
-20 events per trace
+trace length = 20
 30 scalability repetitions per workload
 ```
 
-and regenerates the complete contents of the `results/` directory.
-
-### Smaller Development Run
-
-For a faster development check:
+### Complete Demonstration
 
 ```bash
-python src/main.py \
-    --traces 1000 \
-    --trace-length 20 \
-    --repetitions 5
+python examples/complete_demo.py
 ```
 
-These reduced settings are intended only for development and do not reproduce the manuscript results.
-
----
-
-## Reproducing the Manuscript Results
-
-To reproduce the submitted experimental results:
+### Individual Examples
 
 ```bash
-python -m pip install -r requirements.txt
-python src/main.py
+python examples/decomposition_example.py
+python examples/merge_example.py
+python examples/elimination_example.py
+python examples/priority_example.py
+python examples/counterexample.py
 ```
 
-The command regenerates:
-
-```text
-Table 2 -> results/table2_structural_changes.csv
-Table 3 -> results/table3_valid_transformations.csv
-Table 4 -> results/table4_invalid_transformations.csv
-Table 5 -> results/table5_counterexamples.csv
-Table 6 -> results/table6_scalability.csv
-Figure 3 -> results/figure3_divergence_positions.png
-            results/figure3_divergence_positions.pdf
-```
-
-Supporting raw and structured data are also regenerated:
-
-```text
-results/algorithm_results.json
-results/proof_obligations.csv
-results/behavioural_validation.csv
-results/counterexamples.json
-results/divergence_positions.json
-results/scalability.csv
-results/scalability_runs.csv
-results/main_sequence.json
-results/experiment_metadata.json
-```
-
-`experiment_metadata.json` records the verification-domain configuration, behavioural-validation parameters, scalability settings, and measured operation.
+The refactoring examples use the same complete finite verification
+domain as the principal verification workflow.
 
 ---
 
 ## Documentation
 
-Additional documentation is available in the `docs/` directory:
+Additional documentation is available in:
 
-- `architecture.md` — framework architecture
-- `semantics.md` — operational semantics
-- `refactoring_theorems.md` — correctness-preserving refactorings
-- `experiments.md` — experimental methodology
-- `results.md` — interpretation of generated results
+```text
+docs/
+├── architecture.md
+├── experiments.md
+├── refactoring_theorems.md
+├── results.md
+└── semantics.md
+```
+
+- `architecture.md` — framework architecture;
+- `experiments.md` — experimental methodology;
+- `refactoring_theorems.md` — preservation conditions;
+- `results.md` — interpretation of the experimental results;
+- `semantics.md` — operational semantics.
+
+---
+
+## Reproducibility
+
+The checked-in `results/` directory contains the exact manuscript-facing
+CSV files and Figure 3 used in the revised paper.
+
+Finite-domain proof-obligation checking is deterministic.
+
+Behavioural validation uses a fixed random seed, so its sampled execution
+inputs and divergence counts can be regenerated.
+
+Scalability results measure wall-clock execution time and may therefore
+vary across machines or repeated executions. Re-execution reproduces the
+experimental procedure, while the checked-in Table 6 CSV records the
+measurements reported in the manuscript.
 
 ---
 
 ## Citation
 
-If you use this framework in your research, please cite the accompanying paper.
+If you use this framework in your research, please cite the accompanying
+paper.
 
 ```bibtex
 @article{Trinh2026,
@@ -539,7 +581,8 @@ If you use this framework in your research, please cite the accompanying paper.
 }
 ```
 
-Please update the citation with the journal, volume, pages, and DOI after publication.
+Please update the citation with the journal, volume, pages, and DOI after
+publication.
 
 ---
 
