@@ -4,26 +4,33 @@ RRAI Refactoring Verification Framework.
 
 The program performs:
 
-1. finite-domain proof-obligation verification;
-2. execution-based behavioural validation;
-3. scalability measurement;
-4. CSV, JSON, and PNG artifact generation;
-5. console result display.
+1. complete finite-domain proof-obligation verification;
+2. execution-based correspondence-based behavioural validation;
+3. scalability measurement of complete behavioural validation;
+4. generation of manuscript-ready Tables 2--6;
+5. generation of Algorithm-1 results and counterexamples;
+6. generation of Figure 3 in PNG and PDF formats;
+7. generation of reproducibility metadata and raw timing data;
+8. console or Jupyter-friendly result display.
 
-Example
--------
-Run the complete experiment:
+Examples
+--------
+Run the complete manuscript experiment:
 
     python src/main.py
 
-Run a smaller validation experiment:
+Run a smaller experiment:
 
     python src/main.py \
         --traces 1000 \
         --trace-length 20 \
         --repetitions 5
 
-Skip the scalability experiment:
+Skip behavioural validation:
+
+    python src/main.py --skip-behavioural
+
+Skip scalability:
 
     python src/main.py --skip-scalability
 """
@@ -44,25 +51,34 @@ from analysis import (
     behavioural_validation,
     scalability,
 )
+
 from reporting import (
     DEFAULT_RESULTS_DIR,
     save_all_results,
     show_results,
 )
-from validation import proof_obligations
+
+from validation import (
+    proof_obligations,
+)
 
 
 # ---------------------------------------------------------------------------
-# Command-line arguments
+# Command-line argument helpers
 # ---------------------------------------------------------------------------
 
-def positive_integer(value: str) -> int:
+def positive_integer(
+    value: str,
+) -> int:
     """
     Parse a strictly positive integer.
     """
 
     try:
-        parsed_value = int(value)
+        parsed_value = int(
+            value
+        )
+
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
             f"Expected an integer, received: {value}"
@@ -76,13 +92,18 @@ def positive_integer(value: str) -> int:
     return parsed_value
 
 
-def non_negative_integer(value: str) -> int:
+def non_negative_integer(
+    value: str,
+) -> int:
     """
     Parse a non-negative integer.
     """
 
     try:
-        parsed_value = int(value)
+        parsed_value = int(
+            value
+        )
+
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
             f"Expected an integer, received: {value}"
@@ -104,18 +125,22 @@ def parse_scalability_sizes(
 
     Example
     -------
-    ``100,500,1000,5000``
+    100,500,1000,2000,5000,10000
     """
 
     try:
         sizes = tuple(
-            int(item.strip())
+            int(
+                item.strip()
+            )
             for item in value.split(",")
             if item.strip()
         )
+
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
-            "Scalability sizes must be comma-separated integers"
+            "Scalability sizes must be "
+            "comma-separated integers"
         ) from exc
 
     if not sizes:
@@ -123,13 +148,21 @@ def parse_scalability_sizes(
             "At least one scalability size is required"
         )
 
-    if any(size <= 0 for size in sizes):
+    if any(
+        size <= 0
+        for size in sizes
+    ):
         raise argparse.ArgumentTypeError(
-            "Every scalability size must be greater than zero"
+            "Every scalability size must be "
+            "greater than zero"
         )
 
     return sizes
 
+
+# ---------------------------------------------------------------------------
+# Argument parser
+# ---------------------------------------------------------------------------
 
 def build_argument_parser() -> argparse.ArgumentParser:
     """
@@ -138,8 +171,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Verify correctness-preserving rule refactorings "
-            "for reactive rule-based AI systems."
+            "Verify correctness-preserving "
+            "rule refactorings for reactive "
+            "rule-based AI systems."
         )
     )
 
@@ -148,7 +182,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=positive_integer,
         default=DEFAULT_TRACE_COUNT,
         help=(
-            "Number of sampled traces per behavioural case "
+            "Number of sampled traces per "
+            "behavioural-validation case "
             f"(default: {DEFAULT_TRACE_COUNT})"
         ),
     )
@@ -178,7 +213,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=positive_integer,
         default=DEFAULT_REPETITIONS,
         help=(
-            "Number of repetitions for each scalability setting "
+            "Number of repetitions for each "
+            "scalability setting "
             f"(default: {DEFAULT_REPETITIONS})"
         ),
     )
@@ -188,8 +224,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=parse_scalability_sizes,
         default=DEFAULT_SCALABILITY_SIZES,
         help=(
-            "Comma-separated trace counts used in the scalability "
-            "experiment, for example 100,500,1000,5000"
+            "Comma-separated trace counts used "
+            "in the scalability experiment, "
+            "for example "
+            "100,500,1000,2000,5000,10000"
         ),
     )
 
@@ -198,7 +236,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         type=Path,
         default=DEFAULT_RESULTS_DIR,
         help=(
-            "Directory used for generated CSV, JSON, and PNG files "
+            "Directory used for generated "
+            "CSV, JSON, PNG, and PDF files "
             f"(default: {DEFAULT_RESULTS_DIR})"
         ),
     )
@@ -206,30 +245,41 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--skip-behavioural",
         action="store_true",
-        help="Skip execution-based behavioural validation",
+        help=(
+            "Skip execution-based "
+            "behavioural validation"
+        ),
     )
 
     parser.add_argument(
         "--skip-scalability",
         action="store_true",
-        help="Skip the scalability experiment",
+        help=(
+            "Skip the scalability experiment"
+        ),
     )
 
     parser.add_argument(
         "--quiet",
         action="store_true",
-        help="Do not display result tables in the terminal",
+        help=(
+            "Do not display generated "
+            "result tables"
+        ),
     )
 
     return parser
 
 
 # ---------------------------------------------------------------------------
-# Execution
+# Artifact-path display
 # ---------------------------------------------------------------------------
 
 def print_artifact_paths(
-    artifact_paths: dict[str, Path | None],
+    artifact_paths: dict[
+        str,
+        Path,
+    ],
 ) -> None:
     """
     Print generated artifact paths.
@@ -239,34 +289,35 @@ def print_artifact_paths(
     print("Generated artifacts")
     print("===================")
 
-    for artifact_name, artifact_path in artifact_paths.items():
-        display_name = artifact_name.replace(
-            "_",
-            " ",
-        ).title()
+    for (
+        artifact_name,
+        artifact_path,
+    ) in artifact_paths.items():
 
-        if artifact_path is None:
-            print(
-                f"{display_name}: not generated"
+        display_name = (
+            artifact_name
+            .replace(
+                "_",
+                " ",
             )
-        else:
-            print(
-                f"{display_name}: "
-                f"{artifact_path.resolve()}"
-            )
+            .title()
+        )
 
+        print(
+            f"{display_name}: "
+            f"{artifact_path.resolve()}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Main experimental workflow
+# ---------------------------------------------------------------------------
 
 def run(
     argv: Sequence[str] | None = None,
 ) -> int:
     """
-    Run the complete verification and experimentation workflow.
-
-    Parameters
-    ----------
-    argv:
-        Optional argument sequence. When None, command-line arguments
-        are read from ``sys.argv``.
+    Run the complete verification and experimental workflow.
 
     Returns
     -------
@@ -275,76 +326,153 @@ def run(
     """
 
     parser = build_argument_parser()
-    arguments = parser.parse_args(argv)
 
-    print(
-        "Running finite-domain proof-obligation verification..."
+    arguments = parser.parse_args(
+        argv
     )
 
-    proof_results = proof_obligations()
+    # ------------------------------------------------------------
+    # Algorithm 1 / proof obligations
+    # ------------------------------------------------------------
+
+    print(
+        "Running complete finite-domain "
+        "proof-obligation verification..."
+    )
+
+    proof_results = (
+        proof_obligations()
+    )
+
+    # ------------------------------------------------------------
+    # Behavioural validation
+    # ------------------------------------------------------------
 
     behavioural_rows = []
-    counterexamples = {}
+    sampled_counterexamples = {}
     divergence_positions = {}
 
     if arguments.skip_behavioural:
+
         print(
             "Behavioural validation skipped."
         )
+
     else:
+
         print(
-            "Running execution-based behavioural validation "
-            f"with {arguments.traces} traces per case..."
+            "Running correspondence-based "
+            "behavioural validation "
+            f"with {arguments.traces} "
+            "traces per case..."
         )
 
         (
             behavioural_rows,
-            counterexamples,
+            sampled_counterexamples,
             divergence_positions,
         ) = behavioural_validation(
-            number_of_traces=arguments.traces,
-            trace_length=arguments.trace_length,
-            seed=arguments.seed,
+            num_traces=
+                arguments.traces,
+            trace_length=
+                arguments.trace_length,
+            seed=
+                arguments.seed,
         )
 
+    # ------------------------------------------------------------
+    # Scalability
+    # ------------------------------------------------------------
+
     scalability_rows = []
+    scalability_run_rows = []
 
     if arguments.skip_scalability:
+
         print(
             "Scalability experiment skipped."
         )
+
     else:
+
         print(
-            "Running scalability experiment "
-            f"with {arguments.repetitions} repetitions..."
+            "Running full correspondence-based "
+            "behavioural-validation scalability "
+            f"experiment with "
+            f"{arguments.repetitions} "
+            "repetitions..."
         )
 
-        scalability_rows = scalability(
-            sizes=arguments.scalability_sizes,
-            trace_length=arguments.trace_length,
-            repetitions=arguments.repetitions,
-            base_seed=arguments.seed,
+        (
+            scalability_rows,
+            scalability_run_rows,
+        ) = scalability(
+            sizes=
+                arguments.scalability_sizes,
+            trace_length=
+                arguments.trace_length,
+            repetitions=
+                arguments.repetitions,
+            base_seed=
+                arguments.seed,
         )
 
-    artifact_paths = save_all_results(
-        proof_results=proof_results,
-        behavioural_rows=behavioural_rows,
-        scalability_rows=scalability_rows,
-        counterexamples=counterexamples,
-        divergence_positions=divergence_positions,
-        output_directory=arguments.output,
+    # ------------------------------------------------------------
+    # Reproducible artifact generation
+    # ------------------------------------------------------------
+
+    print(
+        "Writing reproducible experiment "
+        "artifacts..."
     )
 
+    artifact_paths = (
+        save_all_results(
+            checks=
+                proof_results,
+            behavioural_rows=
+                behavioural_rows,
+            sampled_counterexamples=
+                sampled_counterexamples,
+            divergence_positions=
+                divergence_positions,
+            scalability_rows=
+                scalability_rows,
+            scalability_run_rows=
+                scalability_run_rows,
+            num_traces=
+                arguments.traces,
+            trace_length=
+                arguments.trace_length,
+            seed=
+                arguments.seed,
+            scalability_sizes=
+                arguments.scalability_sizes,
+            scalability_repetitions=
+                arguments.repetitions,
+            output_directory=
+                arguments.output,
+        )
+    )
+
+    # ------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------
+
     if not arguments.quiet:
+
         show_results(
-            proof_results=proof_results,
-            behavioural_rows=behavioural_rows,
-            scalability_rows=scalability_rows,
+            output_directory=
+                arguments.output
         )
 
         print_artifact_paths(
             artifact_paths
         )
+
+    # ------------------------------------------------------------
+    # Expected proof-obligation outcomes
+    # ------------------------------------------------------------
 
     valid_cases = {
         "Decomposition",
@@ -360,33 +488,46 @@ def run(
     }
 
     valid_checks_passed = all(
-        proof_results[name].passed
+        proof_results[
+            name
+        ].status == "Pass"
         for name in valid_cases
     )
 
     negative_controls_rejected = all(
-        not proof_results[name].passed
+        proof_results[
+            name
+        ].status == "Fail"
         for name in invalid_cases
     )
 
     if (
         valid_checks_passed
-        and negative_controls_rejected
+        and
+        negative_controls_rejected
     ):
+
         print()
         print(
             "Verification completed successfully."
         )
+
         return 0
 
     print()
+
     print(
-        "Verification completed, but one or more expected "
-        "proof-obligation outcomes were not obtained."
+        "Verification completed, but one or more "
+        "expected proof-obligation outcomes "
+        "were not obtained."
     )
 
     return 1
 
+
+# ---------------------------------------------------------------------------
+# Program entry point
+# ---------------------------------------------------------------------------
 
 def main() -> None:
     """
@@ -394,21 +535,30 @@ def main() -> None:
     """
 
     try:
+
         exit_code = run()
+
     except KeyboardInterrupt:
+
         print(
             "\nExecution interrupted by the user.",
             file=sys.stderr,
         )
+
         exit_code = 130
+
     except Exception as exc:
+
         print(
             f"\nExecution failed: {exc}",
             file=sys.stderr,
         )
+
         exit_code = 1
 
-    raise SystemExit(exit_code)
+    raise SystemExit(
+        exit_code
+    )
 
 
 if __name__ == "__main__":
