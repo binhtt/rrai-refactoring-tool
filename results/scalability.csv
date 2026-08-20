@@ -1,7 +1,0 @@
-traces,trace_length,repetitions,mean_time_s,sd_time_s,min_time_s,max_time_s,measured_operation
-100,20,30,0.163146,0.049757,0.125517,0.257812,full_correspondence_based_behavioural_validation
-500,20,30,0.746226,0.179139,0.636419,1.229789,full_correspondence_based_behavioural_validation
-1000,20,30,1.520056,0.357556,1.301981,2.225873,full_correspondence_based_behavioural_validation
-2000,20,30,3.030822,0.568327,2.614353,4.355132,full_correspondence_based_behavioural_validation
-5000,20,30,7.638017,0.730837,6.669687,8.426131,full_correspondence_based_behavioural_validation
-10000,20,30,15.265603,0.361065,14.938550,16.157665,full_correspondence_based_behavioural_validation
