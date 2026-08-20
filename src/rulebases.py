@@ -6,50 +6,32 @@ This module defines:
 
 Valid scenarios
 ---------------
-- decomposition
-- merging
-- elimination
 - priority adjustment
+- merging
+- decomposition
+- elimination
 
 Negative-control scenarios
 --------------------------
-- unsafe decomposition
 - invalid merge
 - invalid priority adjustment
+- unsafe decomposition
 
-It also defines the rule-correspondence relations used for
-behavioural validation.
+The main preservation-valid sequence is:
+
+    ORIGINAL
+        -> PRIORITY_ADJUSTED
+        -> MERGED
+        -> DECOMPOSED
+
+The elimination case is evaluated independently.
 """
 
 from __future__ import annotations
 
 from typing import Set, Tuple
 
-from core import Rule, RuleBase
-
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-def make_rule(
-    name: str,
-    event: str,
-    guard: str,
-    action: str,
-) -> Rule:
-    """
-    Construct a reactive rule.
-
-    This short helper keeps the rule-base declarations compact and readable.
-    """
-
-    return Rule(
-        name=name,
-        event=event,
-        guard=guard,
-        action=action,
-    )
+from core import R, Rule, RuleBase
 
 
 # ---------------------------------------------------------------------------
@@ -57,85 +39,85 @@ def make_rule(
 # ---------------------------------------------------------------------------
 
 ORIGINAL_RULES = [
-    make_rule(
+    R(
         "r3",
         "sensor",
         "obstacleDetected and highSpeed",
         "emergencyStop",
     ),
-    make_rule(
+    R(
         "r8",
         "sensor",
         "collisionRisk",
         "evade",
     ),
-    make_rule(
+    R(
         "r12",
         "sensor",
         "cliffDetected",
         "stop",
     ),
-    make_rule(
+    R(
         "r5",
         "sensor",
         "batteryCritical",
         "shutdown",
     ),
-    make_rule(
+    R(
         "r2",
         "sensor",
         "batteryLow",
         "returnToCharge",
     ),
-    make_rule(
+    R(
         "r14",
         "sensor",
         "chargingStationNear",
         "dock",
     ),
-    make_rule(
+    R(
         "r1",
         "sensor",
         "pathBlocked",
         "reroute",
     ),
-    make_rule(
+    R(
         "r9",
         "sensor",
         "obstacleDetected",
         "turnLeft",
     ),
-    make_rule(
+    R(
         "r6",
         "sensor",
         "narrowCorridor",
         "reduceSpeed",
     ),
-    make_rule(
+    R(
         "r11",
         "sensor",
         "goalVisible",
         "moveForward",
     ),
-    make_rule(
+    R(
         "r4",
         "timer",
         "idle and goalVisible",
         "moveForward",
     ),
-    make_rule(
+    R(
         "r7",
         "watchdog",
         "communicationLost",
         "safeMode",
     ),
-    make_rule(
+    R(
         "r10",
         "watchdog",
         "sensorFailure",
         "restartSensor",
     ),
-    make_rule(
+    R(
         "r13",
         "watchdog",
         "localizationLost",
@@ -155,8 +137,8 @@ ORIGINAL_PRIORITY: Set[Tuple[str, str]] = {
 
 
 ORIGINAL = RuleBase(
-    rules=list(ORIGINAL_RULES),
-    priority=set(ORIGINAL_PRIORITY),
+    list(ORIGINAL_RULES),
+    set(ORIGINAL_PRIORITY),
 )
 
 
@@ -164,9 +146,10 @@ ORIGINAL = RuleBase(
 # Valid priority adjustment
 # ---------------------------------------------------------------------------
 
+# 14 rules, 7 explicit priority relations.
 PRIORITY_ADJUSTED = RuleBase(
-    rules=list(ORIGINAL_RULES),
-    priority=set(ORIGINAL_PRIORITY) | {
+    list(ORIGINAL_RULES),
+    set(ORIGINAL_PRIORITY) | {
         ("r6", "r4"),
     },
 )
@@ -176,40 +159,34 @@ PRIORITY_ADJUSTED = RuleBase(
 # Valid merging
 # ---------------------------------------------------------------------------
 
-MERGED_RULES = [
-    rule
-    for rule in ORIGINAL_RULES
-    if rule.name not in {"r11", "r4"}
-] + [
-    make_rule(
-        "r15_sensor",
-        "sensor",
-        "goalVisible",
-        "moveForward",
-    ),
-    make_rule(
-        "r15_timer",
-        "timer",
-        "idle and goalVisible",
-        "moveForward",
-    ),
-]
-
-
-MERGED_PRIORITY: Set[Tuple[str, str]] = {
-    ("r2", "r3"),
-    ("r9", "r3"),
-    ("r1", "r8"),
-    ("r2", "r5"),
-    ("r6", "r15_sensor"),
-    ("r6", "r15_timer"),
-    ("r10", "r7"),
-}
+# Cardinality-changing merge:
+#
+#     r11, r4 -> r15
+#
+# This is one logical Rule object with a guard over S x E.
+R15 = Rule(
+    "r15",
+    "((event == 'sensor') and goalVisible) or "
+    "((event == 'timer') and idle and goalVisible)",
+    "moveForward",
+)
 
 
 MERGED = RuleBase(
-    rules=MERGED_RULES,
-    priority=MERGED_PRIORITY,
+    [
+        rule
+        for rule in PRIORITY_ADJUSTED.rules
+        if rule.name not in {"r11", "r4"}
+    ]
+    + [R15],
+    {
+        ("r2", "r3"),
+        ("r9", "r3"),
+        ("r1", "r8"),
+        ("r2", "r5"),
+        ("r6", "r15"),
+        ("r10", "r7"),
+    },
 )
 
 
@@ -217,49 +194,41 @@ MERGED = RuleBase(
 # Valid decomposition
 # ---------------------------------------------------------------------------
 
-DECOMPOSED_RULES = [
-    rule
-    for rule in ORIGINAL_RULES
-    if rule.name != "r3"
-] + [
-    make_rule(
-        "r3a",
-        "sensor",
-        (
-            "obstacleDetected "
-            "and highSpeed "
-            "and frontObstacle"
-        ),
-        "emergencyStop",
-    ),
-    make_rule(
-        "r3b",
-        "sensor",
-        (
-            "obstacleDetected "
-            "and highSpeed "
-            "and not frontObstacle"
-        ),
-        "emergencyStop",
-    ),
-]
-
-
-DECOMPOSED_PRIORITY: Set[Tuple[str, str]] = {
-    ("r2", "r3a"),
-    ("r2", "r3b"),
-    ("r9", "r3a"),
-    ("r9", "r3b"),
-    ("r1", "r8"),
-    ("r2", "r5"),
-    ("r6", "r11"),
-    ("r10", "r7"),
-}
-
-
+# This is the next stage of the main sequence:
+#
+#     13 rules -> 14 rules
+#
+# It therefore starts from MERGED rather than ORIGINAL.
 DECOMPOSED = RuleBase(
-    rules=DECOMPOSED_RULES,
-    priority=DECOMPOSED_PRIORITY,
+    [
+        rule
+        for rule in MERGED.rules
+        if rule.name != "r3"
+    ]
+    + [
+        R(
+            "r3a",
+            "sensor",
+            "obstacleDetected and highSpeed and frontObstacle",
+            "emergencyStop",
+        ),
+        R(
+            "r3b",
+            "sensor",
+            "obstacleDetected and highSpeed and not frontObstacle",
+            "emergencyStop",
+        ),
+    ],
+    {
+        ("r2", "r3a"),
+        ("r2", "r3b"),
+        ("r9", "r3a"),
+        ("r9", "r3b"),
+        ("r1", "r8"),
+        ("r2", "r5"),
+        ("r6", "r15"),
+        ("r10", "r7"),
+    },
 )
 
 
@@ -267,79 +236,69 @@ DECOMPOSED = RuleBase(
 # Valid elimination
 # ---------------------------------------------------------------------------
 
-ELIMINATION_ORIGINAL_RULES = list(ORIGINAL_RULES) + [
-    make_rule(
-        "r16",
-        "sensor",
-        "goalVisible",
-        "moveForward",
-    ),
-]
-
-
-ELIMINATION_ORIGINAL_PRIORITY = (
+# Elimination is evaluated independently from the main
+# priority-adjustment -> merge -> decomposition sequence.
+ELIM_ORIGINAL = RuleBase(
+    list(ORIGINAL_RULES)
+    + [
+        R(
+            "r16",
+            "sensor",
+            "goalVisible",
+            "moveForward",
+        )
+    ],
     set(ORIGINAL_PRIORITY)
     | {
         ("r16", "r11"),
-    }
-)
-
-
-ELIMINATION_ORIGINAL = RuleBase(
-    rules=ELIMINATION_ORIGINAL_RULES,
-    priority=ELIMINATION_ORIGINAL_PRIORITY,
+    },
 )
 
 
 ELIMINATED = RuleBase(
-    rules=list(ORIGINAL_RULES),
-    priority=set(ORIGINAL_PRIORITY),
+    list(ORIGINAL_RULES),
+    set(ORIGINAL_PRIORITY),
 )
 
 
-# Backward-compatible alias matching the single-file implementation.
-ELIM_ORIGINAL = ELIMINATION_ORIGINAL
+# Backward-compatible name used by earlier modular code.
+ELIMINATION_ORIGINAL = ELIM_ORIGINAL
 
 
 # ---------------------------------------------------------------------------
 # Negative control: unsafe decomposition
 # ---------------------------------------------------------------------------
 
-UNSAFE_DECOMPOSITION_RULES = [
-    rule
-    for rule in ORIGINAL_RULES
-    if rule.name != "r3"
-] + [
-    make_rule(
-        "r3u1",
-        "sensor",
-        "obstacleDetected",
-        "hazardFlag",
-    ),
-    make_rule(
-        "r3u2",
-        "sensor",
-        "hazardFlag and highSpeed",
-        "emergencyStop",
-    ),
-]
-
-
-UNSAFE_DECOMPOSITION_PRIORITY: Set[Tuple[str, str]] = {
-    ("r2", "r3u1"),
-    ("r2", "r3u2"),
-    ("r9", "r3u1"),
-    ("r9", "r3u2"),
-    ("r1", "r8"),
-    ("r2", "r5"),
-    ("r6", "r11"),
-    ("r10", "r7"),
-}
-
-
 UNSAFE_DECOMPOSITION = RuleBase(
-    rules=UNSAFE_DECOMPOSITION_RULES,
-    priority=UNSAFE_DECOMPOSITION_PRIORITY,
+    [
+        rule
+        for rule in ORIGINAL_RULES
+        if rule.name != "r3"
+    ]
+    + [
+        R(
+            "r3u1",
+            "sensor",
+            "obstacleDetected",
+            "hazardFlag",
+        ),
+        R(
+            "r3u2",
+            "sensor",
+            "hazardFlag and highSpeed",
+            "emergencyStop",
+        ),
+    ],
+    {
+        ("r2", "r3u1"),
+        ("r2", "r3u2"),
+        ("r9", "r3u1"),
+        ("r9", "r3u2"),
+        ("r1", "r8"),
+        ("r2", "r5"),
+        ("r6", "r11"),
+        ("r10", "r7"),
+    },
 )
 
 
@@ -347,19 +306,14 @@ UNSAFE_DECOMPOSITION = RuleBase(
 # Negative control: invalid priority adjustment
 # ---------------------------------------------------------------------------
 
-INVALID_PRIORITY_RELATION = (
+# Remove r9 < r3 exactly as described in the manuscript.
+# The reverse relation r3 < r9 is NOT introduced.
+INVALID_PRIORITY = RuleBase(
+    list(ORIGINAL_RULES),
     set(ORIGINAL_PRIORITY)
     - {
         ("r9", "r3"),
-    }
-) | {
-    ("r3", "r9"),
-}
-
-
-INVALID_PRIORITY = RuleBase(
-    rules=list(ORIGINAL_RULES),
-    priority=INVALID_PRIORITY_RELATION,
+    },
 )
 
 
@@ -367,35 +321,47 @@ INVALID_PRIORITY = RuleBase(
 # Negative control: invalid merge
 # ---------------------------------------------------------------------------
 
-INVALID_MERGE_RULES = [
-    rule
-    for rule in ORIGINAL_RULES
-    if rule.name not in {"r11", "r4"}
-] + [
-    make_rule(
-        "r15_sensor",
-        "sensor",
-        "goalVisible",
-        "moveForward",
-    ),
-    make_rule(
-        "r15_timer",
-        "timer",
-        "idle and goalVisible",
-        "moveForward",
-    ),
-]
+# Create one logical merged rule r15u, but deliberately omit
+# the inherited priority relation r6 < r15u.
+#
+# All priority relations incident to removed rules are removed first,
+# so the resulting rule base is structurally well formed.
+R15U = Rule(
+    "r15u",
+    "((event == 'sensor') and goalVisible) or "
+    "((event == 'timer') and idle and goalVisible)",
+    "moveForward",
+)
 
 
 INVALID_MERGE = RuleBase(
-    rules=INVALID_MERGE_RULES,
-    priority=set(ORIGINAL_PRIORITY),
+    [
+        rule
+        for rule in ORIGINAL.rules
+        if rule.name not in {"r11", "r4"}
+    ]
+    + [R15U],
+    {
+        ("r2", "r3"),
+        ("r9", "r3"),
+        ("r1", "r8"),
+        ("r2", "r5"),
+
+        # Deliberately omitted:
+        # ("r6", "r15u")
+
+        ("r10", "r7"),
+    },
 )
 
 
 # ---------------------------------------------------------------------------
 # Rule-correspondence relations
 # ---------------------------------------------------------------------------
+
+# These constants are retained for compatibility with the modular
+# implementation.  The revised Algorithm 1 implementation constructs
+# the same relations automatically from the detected transformation.
 
 Correspondence = Set[Tuple[str, str]]
 
@@ -404,9 +370,7 @@ def identity_correspondence(
     before: RuleBase,
     after: RuleBase,
 ) -> Correspondence:
-    """
-    Construct identity correspondences for rules occurring in both systems.
-    """
+    """Identity pairs for rules retained in both rule bases."""
 
     common_names = (
         set(before.by_name())
@@ -419,13 +383,50 @@ def identity_correspondence(
     }
 
 
-# Backward-compatible alias matching the original implementation.
+# Backward-compatible alias.
 identity_corr = identity_correspondence
 
 
-CORR_DECOMPOSITION: Correspondence = (
+# Priority adjustment:
+#
+#     ORIGINAL -> PRIORITY_ADJUSTED
+#
+CORR_PRIORITY_ADJUSTMENT: Correspondence = (
     identity_correspondence(
         ORIGINAL,
+        PRIORITY_ADJUSTED,
+    )
+)
+
+
+# Merge:
+#
+#     PRIORITY_ADJUSTED -> MERGED
+#
+# Genuine many-to-one correspondence:
+#
+#     (r11, r15)
+#     (r4,  r15)
+#
+CORR_MERGING: Correspondence = (
+    identity_correspondence(
+        PRIORITY_ADJUSTED,
+        MERGED,
+    )
+    | {
+        ("r11", "r15"),
+        ("r4", "r15"),
+    }
+)
+
+
+# Decomposition:
+#
+#     MERGED -> DECOMPOSED
+#
+CORR_DECOMPOSITION: Correspondence = (
+    identity_correspondence(
+        MERGED,
         DECOMPOSED,
     )
     | {
@@ -435,46 +436,38 @@ CORR_DECOMPOSITION: Correspondence = (
 )
 
 
-CORR_PRIORITY_ADJUSTMENT: Correspondence = (
-    identity_correspondence(
-        ORIGINAL,
-        PRIORITY_ADJUSTED,
-    )
-)
-
-
+# Elimination:
+#
+#     ELIM_ORIGINAL -> ELIMINATED
+#
 CORR_ELIMINATION: Correspondence = (
     identity_correspondence(
-        ELIMINATION_ORIGINAL,
+        ELIM_ORIGINAL,
         ELIMINATED,
     )
 )
 
 
-CORR_MERGING: Correspondence = (
-    identity_correspondence(
-        PRIORITY_ADJUSTED,
-        MERGED,
-    )
-    | {
-        ("r11", "r15_sensor"),
-        ("r4", "r15_timer"),
-    }
-)
-
-
+# Invalid merge:
+#
+#     ORIGINAL -> INVALID_MERGE
+#
 CORR_INVALID_MERGE: Correspondence = (
     identity_correspondence(
         ORIGINAL,
         INVALID_MERGE,
     )
     | {
-        ("r11", "r15_sensor"),
-        ("r4", "r15_timer"),
+        ("r11", "r15u"),
+        ("r4", "r15u"),
     }
 )
 
 
+# Invalid priority adjustment:
+#
+#     ORIGINAL -> INVALID_PRIORITY
+#
 CORR_INVALID_PRIORITY: Correspondence = (
     identity_correspondence(
         ORIGINAL,
@@ -483,6 +476,10 @@ CORR_INVALID_PRIORITY: Correspondence = (
 )
 
 
+# Unsafe decomposition:
+#
+#     ORIGINAL -> UNSAFE_DECOMPOSITION
+#
 CORR_UNSAFE_DECOMPOSITION: Correspondence = (
     identity_correspondence(
         ORIGINAL,
