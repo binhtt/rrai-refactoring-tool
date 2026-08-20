@@ -321,11 +321,11 @@ INVALID_PRIORITY = RuleBase(
 # Negative control: invalid merge
 # ---------------------------------------------------------------------------
 
-# Create one logical merged rule r15u, but deliberately omit
-# the inherited priority relation r6 < r15u.
+# Create one logical merged rule r15u but deliberately omit
+# the inherited priority relation involving the merged rule.
 #
-# All priority relations incident to removed rules are removed first,
-# so the resulting rule base is structurally well formed.
+# Priority relations incident to the removed rules are not retained,
+# so the resulting target rule base contains no dangling relation.
 R15U = Rule(
     "r15u",
     "((event == 'sensor') and goalVisible) or "
@@ -360,7 +360,7 @@ INVALID_MERGE = RuleBase(
 # ---------------------------------------------------------------------------
 
 # These constants are retained for compatibility with the modular
-# implementation.  The revised Algorithm 1 implementation constructs
+# implementation. The revised Algorithm 1 implementation constructs
 # the same relations automatically from the detected transformation.
 
 Correspondence = Set[Tuple[str, str]]
