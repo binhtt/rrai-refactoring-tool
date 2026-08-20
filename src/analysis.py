@@ -4,78 +4,48 @@ Execution-based behavioural validation and scalability experiments.
 This module provides:
 
 - deterministic generation of initial states and event sequences;
-- behavioural validation for valid and invalid refactorings;
+- correspondence-based behavioural validation for valid and invalid
+  refactorings;
 - collection of first-divergence positions;
-- extraction of counterexamples;
-- repeated scalability experiments.
+- extraction of sampled counterexamples;
+- repeated scalability experiments measuring the complete
+  correspondence-based behavioural-validation procedure.
 
-Execution-based validation complements proof-obligation checking. It
-provides empirical evidence and concrete counterexamples, but it is not
-treated as a formal proof of behavioural equivalence.
+Execution-based validation complements proof-obligation checking.
+It provides empirical evidence and concrete counterexamples, but it is
+not treated as a formal proof of behavioural equivalence.
 """
 
 from __future__ import annotations
 
+from dataclasses import asdict
 import random
 import statistics
 import time
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from core import RuleBase, State, Transition
+from core import State
+
 from rulebases import (
-    CORR_DECOMPOSITION,
-    CORR_ELIMINATION,
-    CORR_INVALID_MERGE,
-    CORR_INVALID_PRIORITY,
-    CORR_MERGING,
-    CORR_PRIORITY_ADJUSTMENT,
-    CORR_UNSAFE_DECOMPOSITION,
     DECOMPOSED,
-    ELIMINATED,
-    ELIMINATION_ORIGINAL,
-    INVALID_MERGE,
-    INVALID_PRIORITY,
     MERGED,
-    ORIGINAL,
-    PRIORITY_ADJUSTED,
-    UNSAFE_DECOMPOSITION,
 )
+
 from semantics import (
     run_corresponding_trace_pair,
-    run_trace,
+)
+
+from validation import (
+    CASES,
+    EVENTS,
+    PREDICATES,
+    correspondence_for,
 )
 
 
 # ---------------------------------------------------------------------------
 # Default experimental configuration
 # ---------------------------------------------------------------------------
-
-EVENTS: Tuple[str, ...] = (
-    "sensor",
-    "timer",
-    "watchdog",
-)
-
-
-PREDICATES: Tuple[str, ...] = (
-    "obstacleDetected",
-    "highSpeed",
-    "frontObstacle",
-    "collisionRisk",
-    "cliffDetected",
-    "batteryCritical",
-    "batteryLow",
-    "chargingStationNear",
-    "pathBlocked",
-    "narrowCorridor",
-    "goalVisible",
-    "idle",
-    "communicationLost",
-    "sensorFailure",
-    "localizationLost",
-    "hazardFlag",
-)
-
 
 DEFAULT_SEED = 20260723
 DEFAULT_TRACE_COUNT = 10_000
@@ -92,88 +62,26 @@ DEFAULT_SCALABILITY_SIZES: Tuple[int, ...] = (
 )
 
 
-Correspondence = Set[Tuple[str, str]]
-
-BehaviouralCase = Tuple[
-    str,
-    RuleBase,
-    RuleBase,
-    Correspondence,
-]
-
-
-# ---------------------------------------------------------------------------
-# Experimental cases
-# ---------------------------------------------------------------------------
-
-CASES: Tuple[BehaviouralCase, ...] = (
-    (
-        "Decomposition",
-        ORIGINAL,
-        DECOMPOSED,
-        CORR_DECOMPOSITION,
-    ),
-    (
-        "Merging",
-        PRIORITY_ADJUSTED,
-        MERGED,
-        CORR_MERGING,
-    ),
-    (
-        "Elimination",
-        ELIMINATION_ORIGINAL,
-        ELIMINATED,
-        CORR_ELIMINATION,
-    ),
-    (
-        "Priority adjustment",
-        ORIGINAL,
-        PRIORITY_ADJUSTED,
-        CORR_PRIORITY_ADJUSTMENT,
-    ),
-    (
-        "Invalid merge",
-        ORIGINAL,
-        INVALID_MERGE,
-        CORR_INVALID_MERGE,
-    ),
-    (
-        "Invalid priority adjustment",
-        ORIGINAL,
-        INVALID_PRIORITY,
-        CORR_INVALID_PRIORITY,
-    ),
-    (
-        "Unsafe decomposition",
-        ORIGINAL,
-        UNSAFE_DECOMPOSITION,
-        CORR_UNSAFE_DECOMPOSITION,
-    ),
-)
-
-
 # ---------------------------------------------------------------------------
 # Random input generation
 # ---------------------------------------------------------------------------
 
 def random_state(
     rng: random.Random,
-    predicates: Sequence[str] = PREDICATES,
 ) -> State:
     """
     Generate one random Boolean state.
 
-    ``hazardFlag`` is initially set to False because it is introduced as an
-    intermediate state variable only by the unsafe-decomposition scenario.
+    All state predicates are independently sampled with equal
+    probabilities, except hazardFlag, which is initially False.
     """
 
-    state: State = {
+    state = {
         predicate: bool(rng.getrandbits(1))
-        for predicate in predicates
+        for predicate in PREDICATES
     }
 
-    if "hazardFlag" in state:
-        state["hazardFlag"] = False
+    state["hazardFlag"] = False
 
     return state
 
@@ -181,24 +89,13 @@ def random_state(
 def random_events(
     rng: random.Random,
     length: int,
-    events: Sequence[str] = EVENTS,
 ) -> List[str]:
     """
-    Generate one random sequence of events.
+    Generate one random event sequence.
     """
 
-    if length <= 0:
-        raise ValueError(
-            "Trace length must be greater than zero"
-        )
-
-    if not events:
-        raise ValueError(
-            "At least one event type is required"
-        )
-
     return [
-        rng.choice(events)
+        rng.choice(EVENTS)
         for _ in range(length)
     ]
 
@@ -211,20 +108,9 @@ def generate_inputs(
     """
     Generate deterministic experimental inputs.
 
-    The same states and event sequences are reused for every transformation
-    case, ensuring that all rule-base pairs are evaluated under identical
-    conditions.
+    The same collection of initial states and event sequences can be
+    reused across transformation cases.
     """
-
-    if number_of_traces <= 0:
-        raise ValueError(
-            "Number of traces must be greater than zero"
-        )
-
-    if trace_length <= 0:
-        raise ValueError(
-            "Trace length must be greater than zero"
-        )
 
     rng = random.Random(seed)
 
@@ -241,108 +127,62 @@ def generate_inputs(
 
 
 # ---------------------------------------------------------------------------
-# Serialization helpers
-# ---------------------------------------------------------------------------
-
-def transition_to_dict(
-    transition: Optional[Transition],
-) -> Optional[Dict[str, object]]:
-    """
-    Convert a transition to a JSON-serializable dictionary.
-    """
-
-    if transition is None:
-        return None
-
-    return {
-        "event": transition.event,
-        "rule": transition.rule,
-        "action": transition.action,
-        "before": dict(transition.before),
-        "after": dict(transition.after),
-    }
-
-
-def extract_divergence_transition(
-    trace: Sequence[Transition],
-    divergence_position: int,
-) -> Optional[Transition]:
-    """
-    Return the transition at a one-based divergence position.
-    """
-
-    index = divergence_position - 1
-
-    if index < 0 or index >= len(trace):
-        return None
-
-    return trace[index]
-
-
-# ---------------------------------------------------------------------------
 # Behavioural validation
 # ---------------------------------------------------------------------------
 
 def behavioural_validation(
-    number_of_traces: int = DEFAULT_TRACE_COUNT,
+    num_traces: int = DEFAULT_TRACE_COUNT,
     trace_length: int = DEFAULT_TRACE_LENGTH,
     seed: int = DEFAULT_SEED,
-    cases: Sequence[BehaviouralCase] = CASES,
-) -> Tuple[
-    List[Dict[str, object]],
-    Dict[str, Optional[Dict[str, object]]],
-    Dict[str, List[int]],
-]:
+):
     """
-    Perform execution-based validation for all transformation cases.
+    Perform Monte-Carlo behavioural validation.
 
-    Each pair of rule bases is executed under the same initial states and
-    event sequences. At every event position, maximal enabled transitions
-    are compared bidirectionally under the supplied rule correspondence.
+    The same sampled inputs are reused across all transformations,
+    consistently with the experimental setup in the manuscript.
+
+    At each execution position, maximal-rule choices are compared
+    bidirectionally under the transformation-induced correspondence.
 
     Returns
     -------
     rows:
-        Tabular summaries for CSV reporting.
+        Aggregate behavioural-validation results.
 
     counterexamples:
-        The first observed counterexample for every transformation. The value
-        is None when no divergence is detected.
+        First sampled behavioural counterexample for each transformation.
 
     divergence_positions:
-        All first-divergence positions observed for each transformation.
+        First-divergence positions for all divergent sampled executions.
     """
 
-    inputs = generate_inputs(
-        number_of_traces=number_of_traces,
-        trace_length=trace_length,
-        seed=seed,
-    )
+    rng = random.Random(seed)
 
-    rows: List[Dict[str, object]] = []
+    inputs = [
+        (
+            random_state(rng),
+            random_events(
+                rng,
+                trace_length,
+            ),
+        )
+        for _ in range(num_traces)
+    ]
 
-    counterexamples: Dict[
-        str,
-        Optional[Dict[str, object]],
-    ] = {}
-
-    divergence_positions: Dict[
-        str,
-        List[int],
-    ] = {}
+    rows = []
+    counterexamples = {}
+    divergence_positions = {}
 
     for (
-        transformation_name,
-        original_rulebase,
-        transformed_rulebase,
+        name,
+        before,
+        after,
         correspondence,
-    ) in cases:
-        divergence_count = 0
-        positions: List[int] = []
+    ) in CASES:
 
-        first_counterexample: Optional[
-            Dict[str, object]
-        ] = None
+        divergences = 0
+        positions = []
+        first_counterexample = None
 
         start_time = time.perf_counter()
 
@@ -350,89 +190,82 @@ def behavioural_validation(
             initial_state,
             events,
         ) in enumerate(inputs):
+
             (
                 original_trace,
                 transformed_trace,
                 first_divergence,
             ) = run_corresponding_trace_pair(
-                rb1=original_rulebase,
-                rb2=transformed_rulebase,
-                initial_state=initial_state,
-                events=events,
-                correspondence=correspondence,
+                before,
+                after,
+                initial_state,
+                events,
+                correspondence,
             )
 
             if first_divergence is None:
                 continue
 
-            divergence_count += 1
-            positions.append(first_divergence)
-
-            if first_counterexample is not None:
-                continue
-
-            original_transition = (
-                extract_divergence_transition(
-                    original_trace,
-                    first_divergence,
-                )
+            divergences += 1
+            positions.append(
+                first_divergence
             )
 
-            transformed_transition = (
-                extract_divergence_transition(
-                    transformed_trace,
-                    first_divergence,
-                )
-            )
+            if first_counterexample is None:
+                first_counterexample = {
+                    "sample": sample_index,
+                    "initial_state": initial_state,
+                    "events": events,
+                    "divergence_position":
+                        first_divergence,
+                    "original_transition":
+                        asdict(
+                            original_trace[
+                                first_divergence - 1
+                            ]
+                        ),
+                    "transformed_transition":
+                        asdict(
+                            transformed_trace[
+                                first_divergence - 1
+                            ]
+                        ),
+                }
 
-            first_counterexample = {
-                "sample_index": sample_index,
-                "initial_state": dict(initial_state),
-                "events": list(events),
-                "divergence_position": first_divergence,
-                "original_transition": transition_to_dict(
-                    original_transition
-                ),
-                "transformed_transition": transition_to_dict(
-                    transformed_transition
-                ),
-            }
-
-        elapsed_seconds = (
+        elapsed = (
             time.perf_counter()
             - start_time
         )
 
-        divergence_rate = (
-            divergence_count
-            / number_of_traces
-            * 100.0
-        )
-
         rows.append(
             {
-                "transformation": transformation_name,
-                "executions": number_of_traces,
-                "trace_length": trace_length,
-                "seed": seed,
-                "divergences": divergence_count,
-                "rate_percent": round(
-                    divergence_rate,
-                    4,
-                ),
-                "elapsed_s": round(
-                    elapsed_seconds,
-                    6,
-                ),
+                "transformation":
+                    name,
+                "executions":
+                    num_traces,
+                "divergences":
+                    divergences,
+                "rate_percent":
+                    round(
+                        100
+                        * divergences
+                        / num_traces,
+                        4,
+                    ),
+                "elapsed_s":
+                    round(
+                        elapsed,
+                        6,
+                    ),
             }
         )
 
         counterexamples[
-            transformation_name
+            name
         ] = first_counterexample
 
         divergence_positions[
-            transformation_name
+            name
         ] = positions
 
     return (
@@ -451,113 +284,188 @@ def scalability(
     trace_length: int = DEFAULT_TRACE_LENGTH,
     repetitions: int = DEFAULT_REPETITIONS,
     base_seed: int = DEFAULT_SEED,
-) -> List[Dict[str, object]]:
+):
     """
-    Measure execution time for increasing numbers of sampled traces.
+    Measure the complete correspondence-based behavioural-validation
+    procedure.
 
-    For each trace-count setting:
+    The timed region invokes run_corresponding_trace_pair for the valid
+    decomposition MERGED -> DECOMPOSED.
 
-    - the experiment is repeated several times;
-    - each repetition uses a deterministic but distinct seed;
-    - the same generated inputs are applied to ORIGINAL and DECOMPOSED;
-    - elapsed execution time is recorded;
-    - mean, sample standard deviation, minimum, and maximum are reported.
+    Each timed run therefore includes:
 
-    Only the number of traces changes. The rule bases, trace length, event
-    set, and predicate set remain fixed.
+    - rule enabling;
+    - maximal-rule computation;
+    - bidirectional correspondence checking;
+    - action and successor-state comparison;
+    - deterministic continuation of the sampled trace.
+
+    Input generation is intentionally performed outside the timed region.
+
+    Only the number of sampled traces varies; the rule-base structure and
+    trace length remain fixed.
+
+    Returns
+    -------
+    aggregate_rows:
+        Mean, standard deviation, minimum, and maximum execution times
+        for each trace-count configuration.
+
+    raw_rows:
+        One row for every timing repetition. With six trace-count settings
+        and 30 repetitions, this contains 180 rows.
     """
 
-    if trace_length <= 0:
-        raise ValueError(
-            "Trace length must be greater than zero"
-        )
+    correspondence = correspondence_for(
+        MERGED,
+        DECOMPOSED,
+    )
 
-    if repetitions <= 0:
-        raise ValueError(
-            "Number of repetitions must be greater than zero"
-        )
-
-    if not sizes:
-        raise ValueError(
-            "At least one scalability size is required"
-        )
-
-    if any(size <= 0 for size in sizes):
-        raise ValueError(
-            "Every scalability size must be greater than zero"
-        )
-
-    rows: List[Dict[str, object]] = []
+    aggregate_rows = []
+    raw_rows = []
 
     for number_of_traces in sizes:
-        elapsed_times: List[float] = []
 
-        for repetition in range(repetitions):
-            seed = base_seed + repetition
+        elapsed_times = []
 
-            inputs = generate_inputs(
-                number_of_traces=number_of_traces,
-                trace_length=trace_length,
-                seed=seed,
+        for repetition in range(
+            repetitions
+        ):
+
+            seed = (
+                base_seed
+                + repetition
             )
 
+            rng = random.Random(
+                seed
+            )
+
+            inputs = [
+                (
+                    random_state(rng),
+                    random_events(
+                        rng,
+                        trace_length,
+                    ),
+                )
+                for _ in range(
+                    number_of_traces
+                )
+            ]
+
+            # Input generation above is intentionally excluded
+            # from the measured region.
             start_time = time.perf_counter()
 
-            for initial_state, events in inputs:
-                run_trace(
-                    ORIGINAL,
-                    initial_state,
-                    events,
-                )
+            divergences = 0
 
-                run_trace(
+            for state, events in inputs:
+
+                (
+                    _,
+                    _,
+                    first_divergence,
+                ) = run_corresponding_trace_pair(
+                    MERGED,
                     DECOMPOSED,
-                    initial_state,
+                    state,
                     events,
+                    correspondence,
                 )
 
-            elapsed_time = (
+                if (
+                    first_divergence
+                    is not None
+                ):
+                    divergences += 1
+
+            elapsed = (
                 time.perf_counter()
                 - start_time
             )
 
+            # The scalability benchmark uses a preservation-valid
+            # transformation. Any divergence therefore indicates
+            # an implementation error.
+            if divergences != 0:
+                raise AssertionError(
+                    "Valid decomposition diverged "
+                    "in scalability run: "
+                    f"{divergences}"
+                )
+
             elapsed_times.append(
-                elapsed_time
+                elapsed
             )
 
-        mean_time = statistics.mean(
-            elapsed_times
-        )
+            raw_rows.append(
+                {
+                    "traces":
+                        number_of_traces,
+                    "trace_length":
+                        trace_length,
+                    "repetition":
+                        repetition + 1,
+                    "seed":
+                        seed,
+                    "elapsed_s":
+                        round(
+                            elapsed,
+                            9,
+                        ),
+                }
+            )
 
-        standard_deviation = (
-            statistics.stdev(elapsed_times)
-            if len(elapsed_times) > 1
-            else 0.0
-        )
-
-        rows.append(
+        aggregate_rows.append(
             {
-                "traces": number_of_traces,
-                "trace_length": trace_length,
-                "repetitions": repetitions,
-                "base_seed": base_seed,
-                "mean_time_s": round(
-                    mean_time,
-                    6,
-                ),
-                "sd_time_s": round(
-                    standard_deviation,
-                    6,
-                ),
-                "min_time_s": round(
-                    min(elapsed_times),
-                    6,
-                ),
-                "max_time_s": round(
-                    max(elapsed_times),
-                    6,
-                ),
+                "traces":
+                    number_of_traces,
+                "trace_length":
+                    trace_length,
+                "repetitions":
+                    repetitions,
+                "mean_time_s":
+                    round(
+                        statistics.mean(
+                            elapsed_times
+                        ),
+                        6,
+                    ),
+                "sd_time_s":
+                    round(
+                        statistics.stdev(
+                            elapsed_times
+                        )
+                        if len(
+                            elapsed_times
+                        ) > 1
+                        else 0.0,
+                        6,
+                    ),
+                "min_time_s":
+                    round(
+                        min(
+                            elapsed_times
+                        ),
+                        6,
+                    ),
+                "max_time_s":
+                    round(
+                        max(
+                            elapsed_times
+                        ),
+                        6,
+                    ),
+                "measured_operation":
+                    (
+                        "full_correspondence_based_"
+                        "behavioural_validation"
+                    ),
             }
         )
 
-    return rows
+    return (
+        aggregate_rows,
+        raw_rows,
+    )
