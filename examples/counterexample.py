@@ -38,21 +38,25 @@ NEGATIVE_CONTROLS = (
 
 def main() -> None:
     """
-    Generate and display counterexamples for invalid refactorings.
+    Generate and display sampled behavioural counterexamples
+    for intentionally invalid refactorings.
     """
 
-    rows, counterexamples, divergence_positions = (
-        behavioural_validation(
-            number_of_traces=1_000,
-            trace_length=20,
-            seed=20260723,
-        )
+    (
+        rows,
+        counterexamples,
+        divergence_positions,
+    ) = behavioural_validation(
+        num_traces=1_000,
+        trace_length=20,
+        seed=20260723,
     )
 
     print("Negative-control behavioural validation")
     print("=======================================")
 
     for row in rows:
+
         transformation = row["transformation"]
 
         if transformation not in NEGATIVE_CONTROLS:
@@ -61,8 +65,15 @@ def main() -> None:
         print()
         print(transformation)
         print("-" * len(transformation))
-        print(f"Executions: {row['executions']}")
-        print(f"Divergences: {row['divergences']}")
+
+        print(
+            f"Executions: {row['executions']}"
+        )
+
+        print(
+            f"Divergences: {row['divergences']}"
+        )
+
         print(
             "Divergence rate: "
             f"{row['rate_percent']:.2f}%"
@@ -74,6 +85,7 @@ def main() -> None:
         )
 
         if positions:
+
             print(
                 "First observed divergence position: "
                 f"{positions[0]}"
@@ -84,10 +96,17 @@ def main() -> None:
         )
 
         if counterexample is None:
-            print("No counterexample found.")
+
+            print(
+                "No sampled counterexample found."
+            )
+
             continue
 
-        print("First counterexample:")
+        print(
+            "First sampled counterexample:"
+        )
+
         print(
             json.dumps(
                 counterexample,
