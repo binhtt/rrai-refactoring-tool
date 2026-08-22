@@ -103,13 +103,20 @@ applicable proof obligation.
 
 The verification workflow:
 
-1. detects the refactoring type;
-2. identifies the changed rules;
-3. checks rule-base well-formedness and unchanged-frame conditions;
-4. evaluates the applicable refactoring-specific proof obligations;
-5. records failed obligations and witnesses;
-6. generates a behavioural counterexample when a failed transformation
-   exhibits an observable divergence.
+1. checks rule-base well-formedness;
+2. detects the refactoring type;
+3. identifies the changed rules;
+4. checks unchanged-frame conditions;
+5. evaluates the applicable refactoring-specific proof obligations;
+6. constructs the refactoring-induced rule correspondence;
+7. records failed obligations and witnesses;
+8. searches the finite verification domain for a diagnostic one-step
+   behavioural counterexample when an applicable proof obligation fails.
+
+The diagnostic counterexample search is distinct from the sampled
+behavioural validation described in Experiment 2. It is used to provide
+a concrete witness for a failed transformation and is not used to
+establish equivalence.
 
 The expected verification results are:
 
@@ -128,6 +135,16 @@ The complete verification results are provided in:
 ```text
 results/proof_obligations.csv
 ```
+
+For the current case study, all four preservation-valid transformations
+pass their applicable proof obligations over the complete finite domain.
+The three negative controls fail the intended preservation conditions:
+
+| Transformation | Failed condition(s) |
+|---|---|
+| Invalid merge | PriorityCompatibility |
+| Invalid priority adjustment | MaximalRulePreservation |
+| Unsafe decomposition | GuardPartition; ActionPreservation |
 
 ---
 
@@ -167,6 +184,9 @@ A single generated collection of initial states and event sequences is
 reused across the evaluated transformations so that corresponding
 systems receive identical execution inputs.
 
+This common-input design makes the behavioural results directly
+comparable across the evaluated transformations.
+
 ## Correspondence-Based Comparison
 
 Behavioural validation does not merely execute the original and
@@ -179,9 +199,15 @@ At each execution step, the framework:
    relation;
 3. checks bidirectional correspondence between the maximal choices of
    the original and transformed systems;
-4. selects corresponding rules for continuation when the maximal
-   choices correspond;
-5. compares the resulting labelled transitions and successor states.
+4. verifies correspondence of the resulting labelled transitions and
+   successor states;
+5. selects a deterministic corresponding pair only after the
+   bidirectional maximal-choice check succeeds, in order to continue
+   the sampled execution prefix.
+
+Thus, deterministic selection is used only to continue a sampled trace.
+It does not replace the bidirectional comparison of all maximal rule
+choices at the current execution step.
 
 A behavioural divergence is recorded when the required correspondence
 between the two systems fails.
@@ -190,9 +216,41 @@ For each divergent execution, the framework records the first
 non-corresponding transition. These observations are also used to
 construct the first-divergence-position distribution.
 
+## Preservation-Valid Transformations
+
+The four preservation-valid transformations are:
+
+- decomposition;
+- merging;
+- elimination;
+- priority adjustment.
+
+All four transformations pass their applicable proof obligations and
+produce zero behavioural divergences in the 10,000 sampled executions.
+
+The merging experiment evaluates the exact cardinality-changing
+transformation
+
+```text
+r11, r4 -> r15
+```
+
+in which the two source rules are replaced by a single merged rule.
+The corresponding many-to-one rule relation contains:
+
+```text
+(r11, r15)
+(r4,  r15)
+```
+
+Thus, the behavioural validation of merging evaluates the actual
+2-to-1 transformation rather than an implementation-level 2-to-2
+representation.
+
 ## Negative Controls
 
-The invalid merge deliberately violates priority compatibility.
+The invalid merge deliberately violates priority compatibility while
+retaining a well-formed rule base and a single merged rule.
 
 The invalid priority adjustment removes the priority relation
 
@@ -215,8 +273,9 @@ results are:
 | Invalid priority adjustment | 2,459 | 24.59% |
 | Unsafe decomposition | 4,929 | 49.29% |
 
-All four preservation-valid transformations produce zero behavioural
-divergences in the sampled executions.
+These negative controls demonstrate that the experimental procedure
+detects observable behavioural differences when the corresponding
+preservation conditions are violated.
 
 The manuscript-level behavioural results are provided in:
 
@@ -243,11 +302,16 @@ It therefore includes:
 
 - execution of the original system;
 - execution of the transformed system;
+- enabled-rule computation;
 - maximal-rule computation;
 - bidirectional rule-correspondence checking;
 - transition comparison.
 
 It is not a measurement of trace generation alone.
+
+Input generation is performed outside the timed region so that the
+reported measurements characterise the cost of the behavioural
+comparison itself.
 
 ## Configuration
 
@@ -267,7 +331,12 @@ Each workload uses:
 - trace length 20;
 - 30 independent timing repetitions.
 
-The mean execution time and standard deviation are reported.
+The scalability experiment uses a preservation-valid decomposition
+scenario and performs the complete correspondence-based behavioural
+comparison for each generated workload.
+
+For every workload, the mean execution time, standard deviation,
+minimum time, and maximum time are retained.
 
 ## Reported Results
 
@@ -279,6 +348,10 @@ The mean execution time and standard deviation are reported.
 | 2,000 | 3.031 ± 0.568 |
 | 5,000 | 7.638 ± 0.731 |
 | 10,000 | 15.266 ± 0.361 |
+
+The measurements show an approximately linear increase in execution
+time as the number of sampled traces increases while trace length and
+rule-base structure remain fixed.
 
 The exact aggregate values supporting the manuscript table are stored in:
 
@@ -311,18 +384,22 @@ results/divergence.png
 ```
 
 Only executions exhibiting behavioural divergence contribute to this
-distribution. Preservation-valid transformations are therefore excluded.
+distribution. Preservation-valid transformations are therefore
+excluded.
 
 The figure complements the aggregate divergence rates by showing when
 the first observable difference between the original and transformed
 systems emerges.
 
+The divergence-position analysis is descriptive and execution-based.
+It is not used to establish the proof-obligation results.
+
 ---
 
 # Manuscript Result Files
 
-The `results/` directory contains the data used to support the tables
-and figure reported in the accompanying manuscript:
+The `results/` directory contains the principal data used to support the
+tables and figure reported in the accompanying manuscript:
 
 ```text
 results/
@@ -351,6 +428,10 @@ The files correspond to:
 - `divergence.png` — first-divergence-position distribution reported
   as Figure 3.
 
+Additional machine-readable outputs, raw scalability measurements,
+reproducibility metadata, and graphical formats may also be generated
+by the reporting workflow.
+
 ---
 
 # Reproducibility
@@ -362,13 +443,20 @@ Behavioural validation uses a fixed pseudo-random seed by default,
 allowing the same sampled initial states and event sequences to be
 regenerated.
 
+The same behavioural input collection is reused across the
+transformation cases within a run, allowing direct comparison under
+identical sampled inputs.
+
 The checked-in result files provide the exact manuscript-level
 experimental results.
 
 Wall-clock timing measurements may vary across executions and hardware.
 For this reason, rerunning the scalability experiment is expected to
-produce similar but not necessarily numerically identical timing
-measurements.
+produce similar scaling behaviour but not necessarily numerically
+identical timing measurements.
+
+The random seed controls generated experimental inputs; it does not
+eliminate variation in wall-clock execution time.
 
 ---
 
@@ -380,25 +468,33 @@ Let:
 - \(k\) be the number of events per trace;
 - \(n\) be the number of rules.
 
-A straightforward implementation evaluates up to \(n\) rules at each
-execution step. Under a general partial priority relation, maximal-rule
-computation may require up to \(O(n^2)\) priority comparisons.
+At an abstract level, evaluating enabledness requires examining up to
+\(n\) rules at each execution step.
 
-The worst-case execution cost of sampled behavioural validation is
-therefore:
+Under a general partial priority relation, straightforward maximal-rule
+computation may require up to \(O(n^2)\) rule-pair checks per execution
+step. Treating priority-processing costs as part of maximal-rule
+computation, a corresponding worst-case bound for sampled behavioural
+validation is therefore
 
 \[
 O(m \times k \times n^2).
 \]
 
-When maximal-rule selection can be resolved in linear time, this reduces
-to:
+If maximal-rule selection can be resolved in linear time for a
+particular priority representation or rule-base structure, the
+corresponding execution cost reduces to
 
 \[
 O(m \times k \times n).
 \]
 
+These bounds characterise the dependence on the number of sampled
+executions, trace length, and rule-base size at an abstract algorithmic
+level. They are not intended as a fine-grained complexity model of
+Python interpreter overhead or wall-clock timing.
+
 The scalability experiment varies \(m\) while keeping \(k\), \(n\), and
-the rule-base structure fixed. It therefore characterises scalability
-with respect to the number of sampled executions rather than rule-base
-size, guard complexity, or priority-relation density.
+the rule-base structure fixed. It therefore characterises empirical
+scalability with respect to the number of sampled executions rather
+than rule-base size, guard complexity, or priority-relation density.
