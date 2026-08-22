@@ -10,9 +10,9 @@ from the formal results presented in the accompanying paper. The
 implementation checks these conditions over the complete finite
 state-event domain of the case study.
 
-Execution-based behavioural validation is used as complementary evidence
-and for counterexample generation. It is not used as the formal basis for
-establishing correctness preservation.
+Execution-based behavioural validation is used as complementary empirical
+evidence and for sampled counterexample generation. It is not used as the
+formal basis for establishing correctness preservation.
 
 ---
 
@@ -51,7 +51,7 @@ The original rule is:
 
 ```text
 r3:
-(sensor, obstacleDetected and highSpeed)
+(event = sensor) and obstacleDetected and highSpeed
     -> emergencyStop
 ```
 
@@ -59,20 +59,22 @@ and is decomposed into:
 
 ```text
 r3a:
-(sensor, obstacleDetected and highSpeed and frontObstacle)
+(event = sensor) and obstacleDetected and highSpeed and frontObstacle
     -> emergencyStop
 
 r3b:
-(sensor, obstacleDetected and highSpeed and not frontObstacle)
+(event = sensor) and obstacleDetected and highSpeed and not frontObstacle
     -> emergencyStop
 ```
 
-The correspondence relation therefore contains:
+The refactoring-induced correspondence therefore contains:
 
 ```text
 (r3, r3a)
 (r3, r3b)
 ```
+
+in addition to identity correspondence for retained rules.
 
 ## Proof Obligations
 
@@ -82,11 +84,14 @@ The verifier checks:
   original effective guard;
 - `ActionPreservation`: the decomposed rules preserve the action of the
   original rule;
-- `PriorityInheritance`: priority relationships involving the original
-  rule are inherited by the decomposed rules;
+- `PriorityInheritance`: external priority relationships involving the
+  original rule are inherited by the decomposed rules;
 - applicable well-formedness and unchanged-frame conditions.
 
-Verification is performed over the finite verification domain.
+The guard-partition check includes exact guard coverage, pairwise
+disjointness, and non-empty partition components.
+
+Verification is performed over the complete finite verification domain.
 
 ---
 
@@ -94,19 +99,19 @@ Verification is performed over the finite verification domain.
 
 ## Description
 
-Rule merging replaces multiple behaviourally compatible rules by one
-logical rule.
+Rule merging replaces multiple behaviourally compatible source rules by
+a single rule.
 
 In the case study, after the valid priority adjustment, rules `r11` and
 `r4` are merged:
 
 ```text
 r11:
-(e = sensor) and goalVisible
+(event = sensor) and goalVisible
     -> moveForward
 
 r4:
-(e = timer) and idle and goalVisible
+(event = timer) and idle and goalVisible
     -> moveForward
 ```
 
@@ -114,13 +119,14 @@ into the single rule:
 
 ```text
 r15:
-((e = sensor) and goalVisible)
+((event = sensor) and goalVisible)
 or
-((e = timer) and idle and goalVisible)
+((event = timer) and idle and goalVisible)
     -> moveForward
 ```
 
-Thus, the transformation is a genuine 2-to-1 merge:
+Thus, the transformation is the exact cardinality-changing 2-to-1
+merge:
 
 ```text
 r11 ──┐
@@ -128,32 +134,40 @@ r11 ──┐
 r4  ──┘
 ```
 
-and the correspondence relation contains:
+The two source rules `r11` and `r4` are removed and replaced by a
+single `Rule` object `r15`.
+
+The refactoring-induced correspondence therefore contains:
 
 ```text
 (r11, r15)
-(r4, r15)
+(r4,  r15)
 ```
 
-The event-specific clauses in the guard of `r15` are implementation
-conditions of one logical rule; they are not represented as separate
-rules.
+in addition to identity correspondence for retained rules.
+
+The event-specific conditions occur within the guard of the single
+merged rule `r15`; they are not represented by separate event-specific
+rule objects.
+
+For the valid case-study transformation, the rule-base cardinality
+changes from 14 rules to 13 rules.
 
 ## Proof Obligations
 
 The verifier checks:
 
-- `MergeGuards`: the merged guard is equivalent to the union of the
-  source effective guards and the source guards satisfy the required
-  compatibility conditions;
-- `CommonAction`: the source rules and merged rule preserve the same
+- `MergeGuards`: the guard of the merged rule is exactly equivalent to
+  the union of the source effective guards, and the source guards satisfy
+  the required disjointness condition;
+- `CommonAction`: all source rules and the merged rule have the same
   action;
-- `PriorityCompatibility`: external priority relationships are
-  preserved consistently for the merged rule;
+- `PriorityCompatibility`: the source rules have compatible external
+  priority profiles and the merged rule inherits that profile;
 - applicable well-formedness and unchanged-frame conditions.
 
-For the valid case-study transformation, the rule-base cardinality
-therefore changes from 14 rules to 13 rules.
+These conditions are evaluated over the complete finite verification
+domain.
 
 ---
 
@@ -161,8 +175,7 @@ therefore changes from 14 rules to 13 rules.
 
 ## Description
 
-Rule elimination removes a rule that cannot affect observable execution
-behaviour.
+Rule elimination removes a rule that cannot affect executable behaviour.
 
 In the case study, the auxiliary rule `r16` is eliminated:
 
@@ -180,9 +193,11 @@ and transformed systems.
 The verifier checks the elimination condition over the complete finite
 state-event domain.
 
-The eliminated rule must not occur as a maximal enabled rule in any
-state-event context relevant to the transformation. Consequently,
-removing it cannot change the maximal executable behaviour.
+The eliminated rule must never occur as a maximal enabled rule in any
+state-event context in the verification domain.
+
+Consequently, removing the rule does not remove a maximal executable
+choice in the finite case-study model.
 
 ---
 
@@ -205,8 +220,8 @@ The rules themselves remain unchanged.
 
 ## Proof Obligation
 
-For every state-event context in the finite verification domain, the
-verifier checks:
+For every state-event context in the complete finite verification
+domain, the verifier checks:
 
 ```text
 MaxEnabled_before(s,e) = MaxEnabled_after(s,e)
@@ -218,8 +233,9 @@ This condition is reported as:
 MaximalRulePreservation
 ```
 
-If the maximal enabled sets remain unchanged for every context, the
-priority adjustment satisfies the applicable preservation condition.
+If the maximal enabled sets remain unchanged for every context in the
+finite verification domain, the priority adjustment satisfies the
+applicable preservation condition.
 
 ---
 
@@ -230,15 +246,24 @@ verification procedure described in the accompanying paper.
 
 For an original rule base and a transformed rule base, the verifier:
 
-1. determines the refactoring type;
-2. identifies the changed rules;
-3. validates applicable structural and frame conditions;
-4. constructs the finite verification domain;
-5. evaluates the refactoring-specific proof obligations;
-6. records failed obligations together with available witnesses;
-7. searches for a behavioural counterexample when applicable.
+1. checks rule-base well-formedness;
+2. determines the refactoring type;
+3. identifies the changed rules;
+4. validates applicable structural and unchanged-frame conditions;
+5. evaluates the refactoring-specific proof obligations over the finite
+   verification domain;
+6. constructs the refactoring-induced rule correspondence;
+7. records failed obligations together with available witnesses;
+8. searches the finite verification domain for a diagnostic one-step
+   behavioural counterexample when an applicable proof obligation fails.
 
-The complete case-study verification domain contains 196,608
+For the case study, the complete verification domain contains 16 Boolean
+state predicates and three events, giving:
+
+```text
+2^16 x 3 = 196,608
+```
+
 state-event contexts.
 
 The aggregate verification results are stored in:
@@ -257,27 +282,34 @@ behavioural validation.
 The original and transformed systems are executed under identical
 sampled initial states and event sequences.
 
-At each execution step, the framework compares the sets of maximal
-enabled rules using the refactoring-induced correspondence relation
-`C_Ref`.
+At each execution step, the framework computes the maximal enabled
+choices in both systems and compares them using the refactoring-induced
+correspondence relation.
 
 Behavioural comparison checks:
 
 - bidirectional correspondence between maximal rule choices;
-- triggering events;
-- corresponding selected rules;
-- executed actions;
-- successor states.
+- equality of triggering events for corresponding transitions;
+- correspondence of the fired rules;
+- equality of executed actions;
+- equality of pre-transition and successor states.
 
-When all maximal choices correspond, a corresponding rule pair is
-selected to continue the sampled execution.
+Every maximal choice in the original system must have a corresponding
+maximal choice in the transformed system, and every maximal choice in
+the transformed system must have a corresponding maximal choice in the
+original system.
 
-A mismatch is recorded as a behavioural divergence, and the first
-non-corresponding transition can be retained as a counterexample.
+Only after this bidirectional maximal-choice check succeeds is a
+deterministic corresponding pair selected to continue the sampled
+execution prefix.
+
+A mismatch is recorded as a behavioural divergence. For a divergent
+sampled execution, the first non-corresponding transition can be
+retained as a sampled behavioural counterexample.
 
 Behavioural validation provides diagnostic and empirical evidence. It
-does not replace proof-obligation verification as the basis for
-establishing the preservation result.
+does not replace proof-obligation verification as the basis for applying
+the corresponding preservation result.
 
 ---
 
@@ -289,16 +321,21 @@ conditions.
 
 ## Invalid Merge
 
-The invalid merge deliberately violates:
+The invalid merge retains a genuine single-rule merge but deliberately
+violates:
 
 ```text
 PriorityCompatibility
 ```
 
-Priority relations incident to the removed source rules are first
-removed so that the transformed rule base remains well formed. The
-required inherited priority relation involving the new merged rule is
-then deliberately omitted.
+Priority relations incident to the removed source rules are removed so
+that the transformed rule base remains well formed. The required
+inherited priority relation involving the new merged rule is then
+deliberately omitted.
+
+Thus, failure is caused by violation of priority compatibility rather
+than by a malformed rule base, dangling priority edge, or a 2-to-2
+implementation of merging.
 
 Expected proof-obligation result:
 
@@ -380,21 +417,28 @@ The fixed behavioural experiment produces:
 
 # Relationship Between Verification and Behavioural Evidence
 
-The framework deliberately separates formal verification from sampled
-behavioural validation.
+The framework deliberately separates finite-domain proof-obligation
+verification from sampled behavioural validation.
 
-Proof-obligation checking evaluates the sufficient preservation
-conditions over the complete finite verification domain. When the
-applicable conditions hold, the corresponding preservation result can
-be applied.
+Proof-obligation checking evaluates the applicable sufficient
+preservation conditions over the complete finite verification domain.
+When these conditions hold, the hypotheses of the corresponding
+preservation result are established for the finite case-study model.
 
 Behavioural validation instead evaluates sampled executions. It provides
-complementary empirical evidence and concrete counterexamples for
-transformations that violate preservation conditions.
+complementary empirical evidence for preservation-valid transformations
+and sampled behavioural counterexamples for transformations that violate
+preservation conditions.
+
+The diagnostic one-step counterexample search performed by the verifier
+after a failed proof obligation is also distinct from sampled behavioural
+validation. It searches the finite verification domain for a concrete
+one-step behavioural witness and is not used to establish equivalence.
 
 Therefore, zero sampled divergences alone is not treated as a proof of
-correctness preservation, and failure of a sufficient proof obligation
-does not logically require that every sampled execution diverge.
+correctness preservation. Conversely, failure of a sufficient proof
+obligation does not imply that every execution must exhibit behavioural
+divergence.
 
 ---
 
@@ -409,10 +453,20 @@ refactoring:
 - priority adjustment.
 
 Their preservation conditions are checked over the complete finite
-state-event domain, while correspondence-based behavioural validation
-provides complementary execution evidence.
+state-event domain of the case study, while correspondence-based sampled
+behavioural validation provides complementary execution evidence.
+
+In particular, merging is implemented as the exact cardinality-changing
+transformation:
+
+```text
+r11, r4 -> r15
+```
+
+where the two source rules are replaced by one `Rule` object and are
+related to that rule through a many-to-one correspondence.
 
 The intentionally invalid transformations demonstrate that violations
-of the preservation conditions can lead to observable behavioural
-divergence and provide diagnostic counterexamples for the corresponding
-failed obligations.
+of the preservation conditions can produce observable behavioural
+divergence and provide diagnostic witnesses for the corresponding failed
+obligations.
