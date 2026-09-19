@@ -1,11 +1,11 @@
 # RRAI Refactoring Verification Framework
 
-A Python framework for verifying correctness-preserving rule refactorings
+A Python framework for verifying trace-preserving rule refactorings
 in reactive rule-based artificial intelligence (RRAI) systems.
 
 This repository accompanies the paper:
 
-> **A Calculus of Correctness-Preserving Rule Refactorings for Reactive
+> **A Calculus of Trace-Preserving Refactorings for Reactive
 > Rule-Based Artificial Intelligence Systems**
 
 The framework combines exhaustive finite-domain proof-obligation
@@ -98,7 +98,7 @@ figure checked into the repository.
 
 ---
 
-## Correctness-Preserving Refactorings
+## Trace-Preserving Refactorings
 
 The artifact evaluates four preservation-valid transformations:
 
@@ -573,9 +573,9 @@ If you use this framework in your research, please cite the accompanying
 paper.
 
 ```bibtex
-@article{Trinh2026,
-  author = {Thanh-Binh Trinh and Van Cuong Nguyen and Nguyen Viet Ha},
-  title  = {A Calculus of Correctness-Preserving Rule Refactorings for Reactive Rule-Based Artificial Intelligence Systems},
+@article{Nguyen2026,
+  author = {Van-Cuong Nguyen and Thanh-Binh Trinh and Nguyen Viet Ha},
+  title  = {A Calculus of Trace-Preserving Refactorings for Reactive Rule-Based Artificial Intelligence Systems},
   year   = {2026},
   note   = {Preprint}
 }
